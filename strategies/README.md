@@ -62,6 +62,40 @@ kelly        : total return +0.13%  | trades  2 | final inventory YES=+400
 > real-money, signed track record gates capital — backtests never do. Arbitrage needs
 > multiple token books / true L2 data, so the single-series harness covers only `mm` and `kelly`.
 
+## Paper trading behind the real venue adapter
+
+`papertrade.py` runs the strategies through the **Phase-1 execution seams** from
+`../docs/ARCHITECTURE.md` — a `VenueAdapter`, a `RiskGate`, and a paper OMS — so the
+same strategy + execution code runs against real or replayed data, and the paper
+broker can later be swapped for the real KMS-backed Execution/OMS untouched:
+
+```
+VenueAdapter ──book──▶ Strategy ──intents──▶ RiskGate ──approved──▶ PaperBroker
+                                                 └── rejections        └── fills ─▶ paper P&L
+```
+
+```bash
+python papertrade.py --strategy mm                      # offline replay (fixture)
+python papertrade.py --strategy kelly --steps 200
+python papertrade.py --strategy arb  --source live --query "election"   # real L2 books
+```
+
+`--source live` pulls a real market's **live L2 order books** from Polymarket's public
+CLOB API (`/book`, no key) — richer than the price-replay backtester, so `arb` (which
+needs independent YES/NO books) is meaningful here. `--source offline` (default) replays
+the fixture. Every intent passes the `RiskGate` (position/notional/depth/mandate limits +
+a kill-switch) before the broker sees it — the same choke point ADR-002 mandates.
+
+Offline sample (matches the backtester, a good cross-check):
+```
+mm    : return -0.27% | 29 fills | 0 risk rejections   (adversely selected on the trend)
+kelly : return +0.13% |  2 fills | 0 risk rejections
+```
+
+> Still **paper**, still not a track record. Maker fills are modelled on mid-crossing
+> (no live trade feed / queue position). The value here is the *architecture*: real venue
+> connectivity + a validated execution choke point that the live system reuses verbatim.
+
 ## How they fit the platform
 
 Each strategy implements the **intent-based execution boundary** from
@@ -80,10 +114,13 @@ predmkt/
   market_maker.py  # strategy 2
   kelly_edge.py    # strategy 3
   sim.py           # tiny offline simulator + synthetic order-book builders
-  data.py          # live Polymarket public API (Gamma + CLOB) + fixture loader
+  data.py          # live Polymarket public API (Gamma + CLOB book/history) + fixture loader
+  venue.py         # VenueAdapter: PolymarketAdapter (live) + ReplayAdapter (offline)
+  execution.py     # RiskGate + PaperBroker + PaperOMS (the trusted execution seams)
 data/sample_history.json  # offline price-history fixture (Polymarket schema)
 demo.py            # runnable demonstration
 backtest.py        # price-replay backtester (real data via --live, else fixture)
+papertrade.py      # paper-trade behind the real venue adapter + risk gate + OMS
 tests/test_smoke.py
 ```
 

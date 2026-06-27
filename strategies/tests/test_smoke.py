@@ -67,6 +67,41 @@ def test_kelly_sizes_on_edge_and_skips_without():
     assert out[0].size > 0
 
 
+def test_risk_gate_enforces_limits():
+    from predmkt import LimitOrder, Portfolio, TIF
+    from predmkt.execution import RiskGate, RiskLimits
+    m = binary_market("m", 0.50, category="politics", size=1000)
+    pf = Portfolio(cash=100_000)
+    gate = RiskGate(RiskLimits(max_position_shares=100, max_order_notional=10_000))
+    small = LimitOrder(market_id="m", token=Token.YES, side=Side.BUY,
+                       price=0.5, size=50, tif=TIF.GTC)
+    big = LimitOrder(market_id="m", token=Token.YES, side=Side.BUY,
+                     price=0.5, size=500, tif=TIF.GTC)
+    assert gate.check(small, pf, m)[0] is True
+    assert gate.check(big, pf, m)[0] is False        # 500 > max_position_shares
+    gate.kill_switch = True
+    assert gate.check(small, pf, m)[0] is False        # kill-switch blocks all
+
+
+def test_paper_oms_runs_over_fixture():
+    from predmkt import Portfolio
+    from predmkt.data import load_fixture
+    from predmkt.execution import PaperBroker, PaperOMS, RiskGate
+    from predmkt.venue import ReplayAdapter
+    adapter = ReplayAdapter(load_fixture()[:120], market_id="replay", outcome="YES")
+    oms = PaperOMS(MarketMakerStrategy(MMParams(market_id="replay")),
+                   RiskGate(), PaperBroker(Portfolio(cash=100_000)))
+    n = 0
+    while True:
+        m = adapter.fetch_market()
+        if m is None:
+            break
+        oms.step(m)
+        n += 1
+    assert n == 120 and len(oms.equity) == 120
+    assert adapter.resolution() == "YES"
+
+
 def test_backtest_runs_on_fixture():
     import backtest
     from predmkt.data import load_fixture

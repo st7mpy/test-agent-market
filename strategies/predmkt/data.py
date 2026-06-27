@@ -25,8 +25,11 @@ import urllib.parse
 import urllib.request
 from typing import List, Optional, Tuple
 
+from .types import OrderBook
+
 GAMMA = "https://gamma-api.polymarket.com/markets"
 CLOB_HISTORY = "https://clob.polymarket.com/prices-history"
+CLOB_BOOK = "https://clob.polymarket.com/book"
 DEFAULT_FIXTURE = os.path.join(os.path.dirname(__file__), "..", "data", "sample_history.json")
 
 PricePoint = Tuple[int, float]   # (unix_seconds, price)
@@ -85,6 +88,16 @@ def fetch_polymarket_history(token_id: str, *, interval: str = "max",
     params = {"market": token_id, "interval": interval, "fidelity": str(fidelity)}
     data = _get_json(f"{CLOB_HISTORY}?{urllib.parse.urlencode(params)}")
     return [(int(pt["t"]), float(pt["p"])) for pt in data.get("history", [])]
+
+
+def fetch_polymarket_book(token_id: str) -> OrderBook:
+    """Fetch a token's live L2 order book from the public CLOB endpoint."""
+    data = _get_json(f"{CLOB_BOOK}?token_id={urllib.parse.quote(str(token_id))}")
+    bids = sorted(((float(l["price"]), float(l["size"])) for l in data.get("bids", [])),
+                  key=lambda x: -x[0])
+    asks = sorted(((float(l["price"]), float(l["size"])) for l in data.get("asks", [])),
+                  key=lambda x: x[0])
+    return OrderBook(bids=bids, asks=asks)
 
 
 # --------------------------------------------------------------------------- #
