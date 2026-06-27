@@ -200,6 +200,7 @@ class StepTelemetry:
     rejected: List[str]
     fills: int
     equity: float
+    fill_list: List[Fill] = field(default_factory=list)
 
 
 class PaperOMS:
@@ -211,15 +212,17 @@ class PaperOMS:
         self.now = 0
 
     def step(self, m: BinaryMarket) -> StepTelemetry:
+        step_fills: List[Fill] = []
         # 1. settle resting maker quotes against the new book
         for f in self.broker.settle_resting(m):
             self.strategy.on_fill(f)
+            step_fills.append(f)
         # 2. strategy decides
         ctx = Context(now=float(self.now), markets={m.market_id: m},
                       portfolio=self.broker.pf)
         intents = self.strategy.on_tick(ctx)
         # 3. every intent passes the RiskGate before the broker sees it
-        approved, rejected, fills = 0, [], 0
+        approved, rejected = 0, []
         for it in intents:
             ok, reason = self.risk.check(it, self.broker.pf, m)
             if not ok:
@@ -228,10 +231,11 @@ class PaperOMS:
             approved += 1
             for f in self.broker.execute(it, m):
                 self.strategy.on_fill(f)
-                fills += 1
+                step_fills.append(f)
         self.broker.replace_resting()
         # 4. mark to market
         eq = self.broker.mark_to_market(m)
         self.equity.append(eq)
         self.now += 1
-        return StepTelemetry(m.yes_book.mid(), len(intents), approved, rejected, fills, eq)
+        return StepTelemetry(m.yes_book.mid(), len(intents), approved, rejected,
+                             len(step_fills), eq, step_fills)

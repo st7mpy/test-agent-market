@@ -102,6 +102,46 @@ def test_paper_oms_runs_over_fixture():
     assert adapter.resolution() == "YES"
 
 
+def test_reconciler_detects_divergence():
+    from predmkt import Position
+    from predmkt.reconcile import Reconciler
+    r = Reconciler(tolerance=1e-6)
+    a = {"m": Position(yes=200, no=0)}
+    assert r.reconcile(a, {"m": Position(yes=200, no=0)}).ok is True
+    bad = r.reconcile(a, {"m": Position(yes=700, no=0)})
+    assert bad.ok is False and bad.breaches(1e-6)[0].max_abs() == 500
+
+
+def test_live_loop_halts_on_injected_divergence():
+    import live
+    from predmkt import Portfolio
+    from predmkt.data import load_fixture
+    from predmkt.execution import PaperBroker, RiskGate
+    from predmkt.venue import ReplayAdapter
+    adapter = ReplayAdapter(load_fixture(), market_id="replay", outcome="YES")
+    broker = PaperBroker(Portfolio(cash=100_000))
+    risk = RiskGate()
+    out = live.run(adapter, MarketMakerStrategy(MMParams(market_id="replay")),
+                   broker, risk, steps=200, reconcile_every=25,
+                   inject_at=100, inject_yes=500.0, verbose=False)
+    assert out["halted"] is True and out["kill_switch"] is True
+    assert out["steps_run"] <= 101            # stopped at/around the injection
+    assert out["resolution"] is None          # no settlement when positions untrusted
+
+
+def test_live_loop_clean_when_no_fault():
+    import live
+    from predmkt import Portfolio
+    from predmkt.data import load_fixture
+    from predmkt.execution import PaperBroker, RiskGate
+    from predmkt.venue import ReplayAdapter
+    adapter = ReplayAdapter(load_fixture(), market_id="replay", outcome="YES")
+    broker = PaperBroker(Portfolio(cash=100_000))
+    out = live.run(adapter, MarketMakerStrategy(MMParams(market_id="replay")),
+                   broker, RiskGate(), steps=400, reconcile_every=25, verbose=False)
+    assert out["halted"] is False and out["kill_switch"] is False
+
+
 def test_backtest_runs_on_fixture():
     import backtest
     from predmkt.data import load_fixture
