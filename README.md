@@ -2,7 +2,12 @@
 
 A two-sided marketplace where **makers** (quants) publish private trading strategies as **vaults**, and **depositors** allocate capital to them, trading on prediction-market venues (Polymarket, Kalshi).
 
-This repository currently holds the **design and evaluation artifacts** for the concept — not yet an implementation.
+This repository currently holds the **design and evaluation artifacts** plus early
+Phase 0–2 scaffolding for the concept.
+
+> **New here? Start with [`HANDOFF.md`](HANDOFF.md)** — the single read-me-first doc:
+> status, locked decisions, full repo map, where we are against the plan, how to run
+> everything, what's verified vs not, and next steps.
 
 ## The model in one paragraph
 
