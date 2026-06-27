@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Prediction-Market Quant Vault Marketplace — Concept Brief</title>
+<style>
+  :root{
+    --ink:#15181d; --muted:#5b6571; --line:#e1e5ea; --soft:#f5f7f9;
+    --accent:#3b4cca; --accent2:#0e8f7e; --warn:#b5491f; --good:#1f7a44;
+  }
+  *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; box-sizing:border-box; }
+  html,body{ margin:0; padding:0; color:var(--ink);
+    font-family:-apple-system,"Segoe UI",Helvetica,Arial,"Liberation Sans",sans-serif;
+    font-size:10.6px; line-height:1.5; }
+  h1,h2,h3{ line-height:1.2; margin:0 0 .35em; }
+  h2{ font-size:18px; color:var(--accent); margin-top:0; padding-bottom:6px; border-bottom:2px solid var(--accent); }
+  h3{ font-size:12.5px; color:var(--ink); margin-top:14px; }
+  p{ margin:.4em 0; }
+  .section{ page-break-before:always; padding-top:2px; }
+  .lead{ color:var(--muted); font-size:11px; }
+  table{ width:100%; border-collapse:collapse; margin:8px 0; font-size:9.9px; }
+  th,td{ border:1px solid var(--line); padding:5px 7px; text-align:left; vertical-align:top; }
+  th{ background:var(--accent); color:#fff; font-weight:600; }
+  tr:nth-child(even) td{ background:var(--soft); }
+  pre{ background:#0f1320; color:#d7e0f5; border-radius:6px; padding:11px 13px;
+    font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace; font-size:8.4px; line-height:1.35;
+    overflow:hidden; white-space:pre; }
+  .pill{ display:inline-block; padding:1px 8px; border-radius:20px; font-size:9px; font-weight:600; }
+  .pill.good{ background:#e3f4ea; color:var(--good); }
+  .pill.warn{ background:#fbe9df; color:var(--warn); }
+  .pill.acc{ background:#e7eaff; color:var(--accent); }
+  .card{ border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:5px;
+    padding:8px 11px; margin:7px 0; background:#fff; }
+  .card.alt{ border-left-color:var(--accent2); }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .flowstep{ display:flex; gap:9px; margin:5px 0; align-items:flex-start; }
+  .num{ flex:0 0 20px; height:20px; width:20px; border-radius:50%; background:var(--accent); color:#fff;
+    font-weight:700; font-size:10px; display:flex; align-items:center; justify-content:center; }
+  .num.alt{ background:var(--accent2); }
+  .flowbody{ flex:1; }
+  .flowbody b{ color:var(--ink); }
+  small,.muted{ color:var(--muted); }
+  .kpi{ display:flex; gap:10px; margin:8px 0; }
+  .kpibox{ flex:1; border:1px solid var(--line); border-radius:6px; padding:8px 10px; background:var(--soft); }
+  .kpibox .big{ font-size:17px; font-weight:700; color:var(--accent); }
+  ul{ margin:.3em 0; padding-left:18px; } li{ margin:2px 0; }
+  .note{ background:#fff8ee; border:1px solid #f0dcae; border-radius:5px; padding:7px 10px; margin:8px 0; font-size:9.8px; }
+  /* cover */
+  .cover{ height:96vh; display:flex; flex-direction:column; justify-content:center; }
+  .cover .tag{ letter-spacing:.18em; text-transform:uppercase; color:var(--accent2); font-weight:700; font-size:10px; }
+  .cover h1{ font-size:34px; margin:.25em 0 .1em; letter-spacing:-.5px; }
+  .cover .sub{ font-size:14px; color:var(--muted); max-width:560px; }
+  .cover .meta{ margin-top:22px; font-size:10px; color:var(--muted); }
+  .toc{ margin-top:26px; border-top:1px solid var(--line); padding-top:14px; columns:2; font-size:10.5px; }
+  .toc div{ margin:3px 0; } .toc b{ color:var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="tag">Concept Brief · Design Phase</div>
+  <h1>Prediction-Market<br>Quant Vault Marketplace</h1>
+  <div class="sub">A two-sided marketplace where quants publish private trading strategies as
+  capital-aligned vaults, and allocators deposit into verified, risk-controlled, real-money track records —
+  trading on Polymarket and Kalshi.</div>
+  <div class="meta">Prepared 27 June 2026 · Configuration <b>B-on-C</b> (infrastructure layer + capital allocator)</div>
+  <div class="toc">
+    <div><b>1.</b> The idea</div>
+    <div><b>2.</b> Who it is for</div>
+    <div><b>3.</b> Probable TAM</div>
+    <div><b>4.</b> Architecture</div>
+    <div><b>5.</b> User flows</div>
+    <div><b>6.</b> Feasibility &amp; risks</div>
+  </div>
+</div>
+
+<!-- 1. THE IDEA -->
+<div class="section">
+  <h2>1 · The idea</h2>
+  <p class="lead">Most people lose money trading prediction markets by hand; a small set of automated,
+  capital-rich, infrastructure-heavy operators win. The opportunity is to package that edge into a
+  product that ordinary allocators can buy into safely — without the operators having to give away their alpha.</p>
+
+  <h3>What it is</h3>
+  <p>A marketplace with two sides. <b>Makers</b> (quants / algo developers) publish trading strategies as
+  <b>vaults</b>. <b>Depositors</b> allocate capital into the vaults they trust. Strategies run on
+  platform-hosted, sandboxed infrastructure — never on a user's laptop, never holding the keys. Capital is
+  custodied in the protocol. Makers are paid <b>only when depositors profit</b>, put their own capital at
+  risk first, and are bounded by automated risk and capacity controls.</p>
+
+  <h3>What it is deliberately NOT</h3>
+  <p>The naïve version — <i>"open-source bots, one-click local deploy, decentralized, the moat is the quant
+  network"</i> — is internally contradictory and fails on four counts. The design below is the corrected form.</p>
+  <table>
+    <tr><th>Naïve pitch</th><th>Why it breaks</th><th>This design instead</th></tr>
+    <tr><td>Open-source strategies</td><td>Public + capacity-limited alpha decays to zero; the best quants never list (market for lemons)</td><td><b>Private</b> strategies; verified <b>real-money</b> track record is the public artifact</td></tr>
+    <tr><td>One-click deploy <i>locally</i></td><td>The only proven-profitable class (latency arb) is an infra game; a laptop is the slow leg; keys unsafe</td><td><b>Hosted</b>, sandboxed execution with a co-located fast path</td></tr>
+    <tr><td>"Moat = quant network + 1-click"</td><td>One-click is copyable; giving away alpha is the opposite of a moat</td><td>Moat = <b>verified PnL + connectivity + risk/custody infra</b></td></tr>
+    <tr><td>Fee on locked / processed volume</td><td>Pays makers to gather &amp; churn even when depositors lose</td><td><b>Profit-only</b> fee + high-water mark + skin-in-the-game</td></tr>
+  </table>
+  <div class="note"><b>One-line model.</b> Makers earn a profit-only performance fee (HWM, tiered by TVL),
+  post first-loss co-investment + a slashable bond, and live under mechanical slashing and dynamic,
+  realized-data capacity caps. Performance is publicly verified; live positions are disclosed on a lag to
+  protect alpha. Custody is split: on-chain ERC-4626 vaults for Polymarket, a regulated custodial vehicle for Kalshi.</div>
+</div>
+
+<!-- 2. WHO IT IS FOR -->
+<div class="section">
+  <h2>2 · Who it is for</h2>
+  <p class="lead">A two-sided market. Each side has a sharp, currently-unmet need.</p>
+
+  <div class="grid2">
+    <div class="card">
+      <h3 style="margin-top:0">Supply — Makers (quants)</h3>
+      <p>Independent quants, small algo shops, ex-prop / DeFi-native traders who <b>have edge but lack
+      capital, infrastructure, and distribution.</b></p>
+      <ul>
+        <li>Want to monetize a strategy <b>without open-sourcing</b> it</li>
+        <li>Want other people's capital + hosted execution + connectivity</li>
+        <li>Want a portable, verifiable <b>track record</b></li>
+      </ul>
+      <p class="muted">Today they either run tiny personal size or join a fund and lose ownership.</p>
+    </div>
+    <div class="card alt">
+      <h3 style="margin-top:0">Demand — Depositors (allocators)</h3>
+      <p>Crypto-native retail &amp; HNW, yield-seekers, and small funds / family offices wanting
+      <b>uncorrelated, event-driven returns</b> without building a trading desk.</p>
+      <ul>
+        <li>The ~90% who <b>lose</b> trading prediction markets by hand</li>
+        <li>DeFi yield allocators seeking an alternative return stream</li>
+        <li>Want vetted, <b>verified</b>, risk-controlled, passive exposure</li>
+      </ul>
+      <p class="muted">Today their only options are gamble manually or trust an unverified Discord "signal".</p>
+    </div>
+  </div>
+
+  <h3>Segments &amp; what wins them</h3>
+  <table>
+    <tr><th>Segment</th><th>Side</th><th>Core need</th><th>What the platform gives</th></tr>
+    <tr><td>Independent quant / algo dev</td><td>Maker</td><td>Capital + monetization, keep IP</td><td>Private strategy, profit-only fee, verified record</td></tr>
+    <tr><td>Small quant shop / prop team</td><td>Maker</td><td>Scale beyond own capital</td><td>AUM via vaults, hosted low-latency exec</td></tr>
+    <tr><td>Crypto-native retail / HNW</td><td>Depositor</td><td>Beat the ~90% loss rate, passively</td><td>One-deposit access to vetted strategies</td></tr>
+    <tr><td>DeFi yield allocator</td><td>Depositor</td><td>Uncorrelated return stream</td><td>On-chain ERC-4626 vault, transparent NAV</td></tr>
+    <tr><td>Small fund / family office</td><td>Depositor</td><td>Event-driven alpha, no desk</td><td>Regulated wrapper, risk controls, reporting</td></tr>
+  </table>
+  <div class="note"><b>Beachhead:</b> crypto-native allocators on the Polymarket (on-chain) rail + a handful
+  of invited makers with real track records. The regulated Kalshi rail and institutional depositors come in a later phase.</div>
+</div>
+
+<!-- 3. TAM -->
+<div class="section">
+  <h2>3 · Probable TAM</h2>
+  <p class="lead">Prediction markets are growing fast, but the revenue here is bounded by a hard ceiling:
+  trading profit in these markets is <b>zero-sum and capacity-constrained</b>. The pie is the extractable
+  alpha pool, and it grows only as fast as volume, open interest, and "dumb-flow" supply. Honest sizing below.</p>
+
+  <div class="kpi">
+    <div class="kpibox"><div class="big">~$458B</div><small>2025 notional volume, Kalshi + Polymarket (~97.5% of market)</small></div>
+    <div class="kpibox"><div class="big">~$1.08B</div><small>Total open interest, late 2025 (6× YoY) — the capacity-relevant number</small></div>
+    <div class="kpibox"><div class="big">$40M+</div><small>Documented arbitrage profit extracted, Apr'24–Apr'25 (one strategy class)</small></div>
+  </div>
+
+  <h3>Model: revenue = AUM × net alpha × fee take</h3>
+  <p>The platform earns a protocol cut of a profit-only performance fee. The chain is:
+  <b>extractable alpha pool → AUM that captures it → performance fee → protocol take.</b></p>
+  <table>
+    <tr><th>Layer</th><th>Definition</th><th>Today (est.)</th><th>3-yr if market keeps growing</th></tr>
+    <tr><td><b>Alpha pool (ceiling)</b></td><td>Total extractable PnL across prediction markets / yr</td><td>~$100–300M</td><td>~$0.5–1.5B</td></tr>
+    <tr><td><b>TAM</b> (fee revenue)</td><td>~15% blended performance fee on that pool, industry-wide</td><td>~$15–45M/yr</td><td>~$75–225M/yr</td></tr>
+    <tr><td><b>SAM</b></td><td>Reachable via Polymarket + Kalshi with the dual-rail structure (~95%+)</td><td>~$14–43M/yr</td><td>~$70–215M/yr</td></tr>
+    <tr><td><b>SOM</b> (one platform)</td><td>Intermediating $100–500M AUM; fee pool then protocol take</td><td>Fee pool ~$1.5–11M; <b>protocol rev ~$0.3–2M</b></td><td>Protocol rev <b>~$3–20M</b></td></tr>
+  </table>
+  <p class="muted"><b>Assumptions:</b> managed/allocator capital ≈ 5–20% of open interest; net alpha to depositors
+  ≈ 10–15%/yr for surviving, capacity-capped strategies; blended performance fee ≈ 15%; protocol take
+  ≈ 15–20% of fees. Ranges, not forecasts.</p>
+
+  <div class="note"><b>The honest caveat.</b> This is a <b>focused, capacity-bound niche</b>, not a hyperscale
+  market — at today's open interest the whole industry's extractable profit is in the low hundreds of
+  millions. It becomes interesting only on the bet that prediction-market volume and OI keep compounding
+  (monthly volume rose from &lt;$5B in Sep'25 to ~$24B by Apr'26). The model scales <i>with the venues</i>,
+  and is gated by capacity caps that deliberately cap AUM to protect returns.</p>
+</div>
+
+<!-- 4. ARCHITECTURE -->
+<div class="section">
+  <h2>4 · Architecture</h2>
+  <p class="lead">Configuration <b>B-on-C</b>: an infrastructure layer (connectivity, hosted execution, risk,
+  custody, track-record) with a capital-allocator / vault layer on top. Shaped by one rule —
+  <b>untrusted strategy, trusted platform.</b></p>
+
+<pre>
+                        Web App / API  (Maker SDK + dashboard | Depositor marketplace)
+                                            |
+   +--------------+----------------+--------+--------------+----------------+
+ Vault &amp;       Track-Record &amp;        Strategy Runtime        Capacity Oracle
+ Accounting(B)  Attestation          (sandboxed) --intents-->  (dynamic caps)
+ shares/NAV/HWM verified PnL                  |
+ fee/co-invest                               \/
+ bond/slashing                          Risk Gate  (limits, drawdown, mandate,
+        |  NAV/settle                    capacity, correlation, kill-switch, slash)
+       \/                                       |
+ Custody &amp; Settlement &lt;----reconcile----> Execution / OMS  (keys in KMS/HSM —
+ (on-chain Polygon + off-chain Kalshi)    strategy NEVER touches keys/funds)
+        |                                       |
+        +----------------> Venue Connectivity Layer (adapters)
+                           Polymarket (CLOB + Polygon/CTF, USDC) | Kalshi (REST/FIX, USD)
+                                       /\
+                           Market Data &amp; Feeds + Historical Tick Store
+</pre>
+
+  <h3>The security model — the crux</h3>
+  <p>Strategy code is <b>untrusted</b>. It runs in an isolated microVM with no key access and no network
+  egress beyond the data feed. It can only emit <b>intents</b> (desired orders / target positions). Every
+  intent passes a single <b>Risk Gate</b> choke point; only the Execution/OMS — which alone holds keys in a
+  KMS/HSM — signs and routes orders. This neutralizes the "third-party code near my funds" rug risk that
+  sinks the deploy-locally design.</p>
+
+  <h3>Vault &amp; fee mechanics (capital alignment)</h3>
+  <p>Capital is tranched: <b>depositor</b> (senior) · <b>maker co-investment</b> (junior / first-loss) ·
+  <b>maker bond</b> (locked, slashable). Makers earn a <b>profit-only</b> fee above a per-share high-water
+  mark, tiered by TVL; the co-invest <b>ratio</b> is enforced continuously so alignment can't be diluted as
+  the vault grows. The bond is sized to outweigh the fee's "free option," killing the incentive to take
+  reckless risk.</p>
+
+  <h3>Custody split &amp; transparency</h3>
+  <p>Polymarket capital sits in <b>on-chain ERC-4626 vaults</b>; Kalshi (off-chain, KYC'd, USD) requires a
+  <b>regulated custodial vehicle</b>. A unified accounting service consolidates both and reconciles NAV
+  against venue reality (divergence → kill-switch). Verified results are public immediately; <b>live
+  positions are disclosed on a lag</b> to prevent copy-trading from decaying the alpha.</p>
+
+  <table>
+    <tr><th>Decision</th><th>Rationale</th><th>Rejected alternative</th></tr>
+    <tr><td>Hosted, not local</td><td>Latency, uptime, key safety, fee enforceability</td><td>Local agent (rug risk, slow, no rake)</td></tr>
+    <tr><td>Intent-based; no keys in strategy</td><td>Single validated choke point; no exfiltration / self-dealing</td><td>Scoped API keys per strategy</td></tr>
+    <tr><td>Private + verified track record</td><td>Solves alpha decay &amp; market-for-lemons</td><td>Open-source marketplace</td></tr>
+    <tr><td>Profit-only fee + HWM</td><td>Ties maker income to depositor outcome</td><td>AUM / turnover fee</td></tr>
+    <tr><td>Co-invest first-loss + slashable bond</td><td>Neutralizes the fee's option convexity</td><td>Reputation only</td></tr>
+    <tr><td>Realized-data capacity caps</td><td>Stops overcapitalizing capacity-limited edge</td><td>Maker-declared capacity</td></tr>
+  </table>
+</div>
+
+<!-- 5. USER FLOWS -->
+<div class="section">
+  <h2>5 · User flows</h2>
+
+  <h3>Maker (quant) flow</h3>
+  <div class="flowstep"><div class="num">1</div><div class="flowbody"><b>Onboard &amp; KYC.</b> Sign up, identity / sanctions checks, accept maker terms.</div></div>
+  <div class="flowstep"><div class="num">2</div><div class="flowbody"><b>Author &amp; backtest.</b> Build the strategy in the Maker SDK (Python/TS); run a reproducible, content-addressed backtest against snapshotted historical data.</div></div>
+  <div class="flowstep"><div class="num">3</div><div class="flowbody"><b>Incubate.</b> Deploy to an incubating vault with <b>only the maker's own capital</b> — no outside AUM yet. Trades run hosted &amp; sandboxed.</div></div>
+  <div class="flowstep"><div class="num">4</div><div class="flowbody"><b>Earn a verified track record.</b> Real-money PnL is signed and anchored on-chain (e.g. 60-day minimum) — no backtests count toward eligibility.</div></div>
+  <div class="flowstep"><div class="num">5</div><div class="flowbody"><b>Unlock outside AUM.</b> Post the required co-investment (first-loss) + slashable bond; the vault lists publicly with its verified record, capacity cap, and fee tier.</div></div>
+  <div class="flowstep"><div class="num">6</div><div class="flowbody"><b>Operate &amp; earn.</b> Collect a profit-only fee above the high-water mark. Stay inside risk limits &amp; capacity caps — breaches trigger mechanical slashing. Graduate to higher TVL tiers as the record lengthens.</div></div>
+
+  <h3>Depositor (allocator) flow</h3>
+  <div class="flowstep"><div class="num alt">1</div><div class="flowbody"><b>Browse the marketplace.</b> Filter vaults by verified performance, Sharpe, max drawdown, capacity headroom, maker co-investment, and fee tier.</div></div>
+  <div class="flowstep"><div class="num alt">2</div><div class="flowbody"><b>Diligence a vault.</b> Inspect the signed real-money track record, lagged position history, risk mandate, and how much skin the maker has in the game.</div></div>
+  <div class="flowstep"><div class="num alt">3</div><div class="flowbody"><b>Pass compliance.</b> KYC + geofencing route the depositor to the correct rail (on-chain Polymarket vs regulated Kalshi vehicle).</div></div>
+  <div class="flowstep"><div class="num alt">4</div><div class="flowbody"><b>Deposit.</b> Funds mint vault shares at the current NAV/share — subject to the capacity cap (excess is rejected or queued).</div></div>
+  <div class="flowstep"><div class="num alt">5</div><div class="flowbody"><b>Monitor.</b> Track NAV, returns, drawdown, and delayed positions live; receive risk-event and slashing notifications.</div></div>
+  <div class="flowstep"><div class="num alt">6</div><div class="flowbody"><b>Withdraw.</b> Redeem shares at NAV after a notice period (positions may be illiquid until event resolution). Performance fee crystallizes <b>only on profit</b> above the high-water mark.</div></div>
+
+  <div class="note"><b>Trust loop.</b> Makers can't touch keys or depositor funds; depositors can't see a strategy's
+  live hand in time to copy it; the platform reconciles every vault's NAV to the venue and halts on divergence.
+  Each side gets what it needs without exposing the other.</div>
+</div>
+
+<!-- 6. FEASIBILITY -->
+<div class="section">
+  <h2>6 · Feasibility &amp; risks</h2>
+  <p class="lead">Verdict: <span class="pill acc">Conditionally feasible.</span> The software is buildable by a
+  small team in months; the hard parts are economics, alignment, and regulation — all addressable with the
+  design above, but bounded by three conditions.</p>
+
+  <table>
+    <tr><th>Dimension</th><th>Status</th><th>Note</th></tr>
+    <tr><td>Demand</td><td><span class="pill good">Strong</span></td><td>Real &amp; compounding; the least of the problems</td></tr>
+    <tr><td>Value capture</td><td><span class="pill good">Solved</span></td><td>Profit-only fee, enforceable via in-protocol custody</td></tr>
+    <tr><td>Incentive alignment</td><td><span class="pill good">Solved*</span></td><td>*if co-invest ratio + bond are sized right — the #1 design task</td></tr>
+    <tr><td>Adverse selection (lemons)</td><td><span class="pill acc">Mitigated</span></td><td>First-loss + slashing + verified record self-select genuine edge</td></tr>
+    <tr><td>Economics at scale</td><td><span class="pill warn">Bounded</span></td><td>Zero-sum / small-OI ceiling caps total TAM</td></tr>
+    <tr><td>Regulatory</td><td><span class="pill warn">Heavy</span></td><td>Profit-fee on pooled capital ⇒ CPO/CTA wrapper, front-loaded</td></tr>
+  </table>
+
+  <h3>The three binding conditions</h3>
+  <ol>
+    <li><b>Co-investment ratio + bond sizing</b> must provably outweigh the performance fee's option value — model this first; get it wrong and you've built a blow-up machine.</li>
+    <li><b>TAM is capped by open interest</b> (~$0.2–0.3B/venue today). Caps protect depositors but bound revenue; the thesis rides on continued market growth.</li>
+    <li><b>A regulated wrapper</b> (CPO/CTA + custodial Kalshi rail, geofenced Polymarket rail) is mandatory and front-loaded.</li>
+  </ol>
+
+  <h3>Phased build</h3>
+  <table>
+    <tr><th>Phase</th><th>Scope</th><th>Proves</th></tr>
+    <tr><td>0</td><td>Infra + Polymarket only + one internal strategy, no outside AUM</td><td>Infra + a real track record</td></tr>
+    <tr><td>1</td><td>Vaults + profit-only fee + HWM + co-invest, invited makers, capped AUM</td><td>Economics + alignment</td></tr>
+    <tr><td>2</td><td>Slashing + dynamic capacity caps + public track record</td><td>Safety + trust</td></tr>
+    <tr><td>3</td><td>Kalshi rail + CPO/CTA wrapper</td><td>Multi-venue + compliance</td></tr>
+    <tr><td>4</td><td>Open marketplace</td><td>Scale (within the OI ceiling)</td></tr>
+  </table>
+  <p class="muted" style="margin-top:14px; border-top:1px solid var(--line); padding-top:8px;">
+  Sources for market figures: Pew Research; The Block; CoinDesk; KuCoin; academic prediction-market
+  arbitrage analyses (Apr 2024–Apr 2025); QuantConnect Alpha Streams postmortem. Figures are estimates for
+  planning, not investment advice.</p>
+</div>
+
+</body>
+</html>
