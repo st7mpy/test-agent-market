@@ -47,7 +47,7 @@ def test_cross_venue_blocked_on_basis_risk():
 def test_market_maker_quotes_and_skews():
     mm = MarketMakerStrategy(MMParams(market_id="m", quote_size=200, max_inventory=1000))
     series = random_walk_market("m", 0.50, 0.004, 40, category="crypto",
-                                seconds_to_resolution=3600.0)
+                                time_to_resolution=40.0)
     last = []
     for t, m in enumerate(series):
         last = mm.on_tick(Context(now=float(t), markets={"m": m}))
@@ -65,6 +65,17 @@ def test_kelly_sizes_on_edge_and_skips_without():
     out = strat.on_tick(Context(markets={"edge": m_edge, "fair": m_fair}))
     assert len(out) == 1 and out[0].market_id == "edge"
     assert out[0].size > 0
+
+
+def test_backtest_runs_on_fixture():
+    import backtest
+    from predmkt.data import load_fixture
+    hist = load_fixture()
+    assert len(hist) > 50
+    res = backtest.run_backtest(
+        MarketMakerStrategy(MMParams(market_id="m")), hist, outcome="YES")
+    assert len(res.equity) == len(hist) + 1   # one mark per tick + settlement
+    assert res.equity[0] > 0 and res.bankroll > 0
 
 
 if __name__ == "__main__":

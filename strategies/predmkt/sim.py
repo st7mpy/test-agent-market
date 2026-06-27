@@ -28,12 +28,12 @@ def flat_book(mid: float, spread: float, size: float) -> OrderBook:
 
 def binary_market(market_id: str, yes_mid: float, spread: float = 0.01,
                   size: float = 1000.0, category: str = "politics",
-                  seconds_to_resolution: float = 86400.0,
+                  time_to_resolution: float = 100.0,
                   venue: Venue = Venue.POLYMARKET) -> BinaryMarket:
     """A binary market whose NO book is the complement of the YES book."""
     yes = flat_book(yes_mid, spread, size)
     no = flat_book(1.0 - yes_mid, spread, size)
-    return BinaryMarket(market_id, category, yes, no, seconds_to_resolution, venue)
+    return BinaryMarket(market_id, category, yes, no, time_to_resolution, venue)
 
 
 def random_walk_market(market_id: str, start: float, sigma: float, steps: int,

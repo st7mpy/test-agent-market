@@ -47,7 +47,7 @@ from .types import (
 class MMParams:
     market_id: str = ""
     gamma: float = 0.3               # risk aversion
-    k: float = 50.0                  # order-arrival intensity (price^-1 scale; ~50 for [0,1] books)
+    k: float = 100.0                 # order-arrival intensity (price^-1 scale for [0,1] books)
     quote_size: float = 200.0        # shares per side
     max_inventory: float = 1000.0    # |q| cap (sized to survive a 0/1 jump)
     min_spread: float = 0.01         # floor (covers fees + adverse selection)
@@ -55,7 +55,7 @@ class MMParams:
     vol_window: int = 60             # ticks for EWMA vol
     vol_cap: float = 0.20            # cap on sigma
     vol_spike_mult: float = 3.0      # widen/pull if sigma > spike_mult * baseline
-    tau_floor: float = 60.0          # seconds; never let tau collapse the quote
+    tau_floor: float = 5.0           # periods; never let tau collapse the quote
     resolution_ramp: float = 4.0     # max gamma multiplier as tau -> tau_floor
 
 
@@ -98,7 +98,7 @@ class MarketMakerStrategy(Strategy):
             return []
         sigma = self._update_vol(s)
 
-        tau = max(m.seconds_to_resolution, self.p.tau_floor)
+        tau = max(m.time_to_resolution, self.p.tau_floor)
         # ramp gamma up as we approach resolution (forces flatter inventory)
         ramp = 1.0 + (self.p.resolution_ramp - 1.0) * (self.p.tau_floor / tau)
         gamma = self.p.gamma * ramp

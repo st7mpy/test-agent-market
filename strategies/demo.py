@@ -53,7 +53,7 @@ def demo_arbitrage() -> None:
         market_id="mkt-intra", category="politics",
         yes_book=book(bids=[(0.46, 800)], asks=[(0.47, 800)]),
         no_book=book(bids=[(0.465, 800)], asks=[(0.475, 800)]),
-        seconds_to_resolution=86400.0,
+        time_to_resolution=100.0,
     )
     # (b) NegRisk event: three exclusive outcomes whose YES asks sum to ~0.95
     ev = Event("evt-1", [
@@ -79,9 +79,10 @@ def demo_market_maker() -> None:
     mm = MarketMakerStrategy(MMParams(market_id="mkt-mm", gamma=0.3, k=1.5,
                                       quote_size=200, max_inventory=1000))
     series = random_walk_market("mkt-mm", start=0.50, sigma=0.004, steps=80,
-                                category="crypto", seconds_to_resolution=3600.0)
+                                category="crypto", time_to_resolution=80.0)
     last = []
     for t, m in enumerate(series):
+        m.time_to_resolution = float(len(series) - t)   # decay toward resolution
         ctx = Context(now=float(t), markets={m.market_id: m})
         intents = mm.on_tick(ctx)
         # toy fill model: assume the resting bid fills when price ticks down, ask when up

@@ -102,7 +102,7 @@ class BinaryMarket:
     category: str                       # "sports" | "politics" | "crypto" | ...
     yes_book: OrderBook
     no_book: OrderBook
-    seconds_to_resolution: float
+    time_to_resolution: float           # in model periods; must match the per-tick vol unit
     venue: Venue = Venue.POLYMARKET
 
     def book(self, token: Token) -> OrderBook:

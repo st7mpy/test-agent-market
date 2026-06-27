@@ -26,6 +26,42 @@ python tests/test_smoke.py   # 5 dependency-free smoke tests
 
 Pure standard library — no dependencies, no network.
 
+## Backtest on real Polymarket data
+
+A tiny **price-replay** backtester (`backtest.py`) replays one market's historical
+YES mid-price, synthesises a book around each mid, runs a strategy, simulates fills,
+settles at resolution, and reports metrics:
+
+```bash
+python backtest.py --strategy mm                      # market maker on bundled fixture
+python backtest.py --strategy kelly                   # Kelly mean-reversion on fixture
+python backtest.py --strategy mm --live --query "election"   # real Polymarket data
+```
+
+Data comes from Polymarket's public endpoints (`predmkt/data.py`): Gamma for market
+discovery and the CLOB `prices-history` series. **No API key needed.** With `--live`
+it pulls a real resolved market; without it, it uses a bundled, schema-accurate
+fixture (`data/sample_history.json`) so it runs offline.
+
+> The fixture is **synthetic-but-schema-accurate** (an election-style market resolving
+> YES). Real data couldn't be fetched at authoring time because this environment's egress
+> policy blocks `polymarket.com`; run `--live` where network is available to use a real series.
+
+Sample run (fixture) — note the results are deliberately unremarkable, which is the
+point: the market maker is **adversely selected** on a strongly trending market (it ends
+short YES and can't flatten because nothing sells to it into a rising market — exactly the
+resolution risk the strategy docstring warns about), and Kelly's guard suppresses most fades:
+
+```
+market_maker : total return -0.27%  | trades 29 | final inventory YES=-1400
+kelly        : total return +0.13%  | trades  2 | final inventory YES=+400
+```
+
+> **These are NOT a verified track record.** Price-replay synthesises books (no true L2
+> depth, optimistic maker fills, no queue position). Per `../docs/PLAN.md` Phase 0, only a
+> real-money, signed track record gates capital — backtests never do. Arbitrage needs
+> multiple token books / true L2 data, so the single-series harness covers only `mm` and `kelly`.
+
 ## How they fit the platform
 
 Each strategy implements the **intent-based execution boundary** from
@@ -44,7 +80,10 @@ predmkt/
   market_maker.py  # strategy 2
   kelly_edge.py    # strategy 3
   sim.py           # tiny offline simulator + synthetic order-book builders
+  data.py          # live Polymarket public API (Gamma + CLOB) + fixture loader
+data/sample_history.json  # offline price-history fixture (Polymarket schema)
 demo.py            # runnable demonstration
+backtest.py        # price-replay backtester (real data via --live, else fixture)
 tests/test_smoke.py
 ```
 
