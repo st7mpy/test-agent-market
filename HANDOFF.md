@@ -120,12 +120,14 @@ strategies/                   Phase 0–1 code — dependency-free Python, 11 sm
   tests/test_smoke.py         11 smoke · test_signals 7 · test_phase0_journal 5 · test_oracle_risk 8 · test_multivenue 7
   README.md, LICENSE (MIT)
 
-contracts/                    Phase 2 — ERC-4626 vault (compiles, 24 Foundry tests, not audited)
+contracts/                    Phase 2/6 — vaults (compile, 31 Foundry tests, not audited)
   src/StrategyVault.sol       profit-only HWM fee, TVL tiers, first-loss+bond, caps, slashing,
                               insurance fund + loss waterfalls (ADR-015)
+  src/TranchedVault.sol       Phase-6 senior/junior tranches (E, ADR-017)
   test/StrategyVault.t.sol    happy-path Foundry tests (5)
   test/StrategyVaultProperties.t.sol   adversarial money-path vectors (12)
   test/StrategyVaultInsurance.t.sol    insurance fund + loss waterfalls (7)
+  test/TranchedVault.t.sol    senior/junior tranching (7)
   AUDIT-PREP.md               toolchain, coverage matrix, Slither triage (Audit #1 scoping)
   foundry.toml, README.md
 ```
@@ -150,7 +152,7 @@ the founder will use to attempt those gates.
 | **3 First outside money** | AUDIT #1 + fee/HWM correct + legal | fee/HWM correctness **proven by test vectors** (`AUDIT-PREP.md`); **multi-venue (D): Kalshi adapter + CrossVenueFeed + venue-aware fees**; audit + legal still pending | ◻ code-correctness done; audit/legal not started |
 | **4 Safety systems** | Chaos tests pass; unattended soak | partial: RiskGate, slashing, caps, kill-switch, **+ oracle-risk scoring/gating + insurance fund & loss-waterfall (C)**; chaos suite pending | ◻ not hardened |
 | **5 Untrusted makers** | Sandbox escape impossible (AUDIT #2) | intent-boundary designed; **sandbox not built** | ◻ not started |
-| **6 Public launch** | Self-serve + geofence + AUDIT #3 + legal | — | ◻ not started |
+| **6 Public launch** | Self-serve + geofence + AUDIT #3 + legal | **tranched vaults (E): `TranchedVault.sol` senior/junior, 7 tests**; UI/KYC/geofence not started | ◻ tranching done; launch infra not started |
 | **7 Harden to 100%** | Full feature matrix + no Sev-1 soak | — | ◻ not started |
 | **8 Kalshi rail** | (post-100%) regulatory decision | — | ◻ explicitly deferred |
 

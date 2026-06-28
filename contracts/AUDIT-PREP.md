@@ -18,11 +18,17 @@ before any outside capital.
 cd contracts
 forge install OpenZeppelin/openzeppelin-contracts foundry-rs/forge-std --no-git
 forge build          # Compiler run successful
-forge test           # 24 passed; 0 failed
+forge test           # 31 passed; 0 failed  (24 StrategyVault + 7 TranchedVault)
 slither . --filter-paths "lib/" --exclude-dependencies
 ```
 
-## Test coverage (24 tests)
+> **Audit #1 scope = `StrategyVault` (Phase 2/3 money-path).** `TranchedVault.sol` is a
+> **Phase-6** structured-product contract (E, ADR-017): senior/junior tranches with a
+> junior-first loss waterfall + senior-coupon yield, 7 tests, Slither-clean (its only
+> open items are non-transferable internal shares + first-depositor inflation hardening).
+> It rides along the same toolchain but is scoped to a later audit.
+
+## Test coverage (24 tests — StrategyVault)
 
 `test/StrategyVault.t.sol` (5 — happy path):
 co-invest gating, capacity-cap revert, profit-only HWM fee, slash access-control.
