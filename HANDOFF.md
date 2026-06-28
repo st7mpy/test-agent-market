@@ -13,19 +13,19 @@ plan, how to run everything, and what to do next. Deeper detail lives in `docs/`
 
 ## 0. Read this first — three things that will bite you
 
-1. **All work is committed locally but NOT pushed.** 7 commits sit on
-   `claude/quant-marketplace-evaluation-5pd4rp`. Both push paths returned **403**
-   (the git relay, and the GitHub MCP app which lacks `contents:write`). Nothing is on
-   GitHub. **Action:** grant the integration `contents:write` (and `pull_requests:write`),
-   then `git push -u origin claude/quant-marketplace-evaluation-5pd4rp`. The repo is empty
-   on GitHub, so this creates the branch.
+1. **Pushed.** The branch `claude/quant-marketplace-evaluation-5pd4rp` is on GitHub at
+   `st7mpy/test-agent-market` (the original 403 push-block is resolved). Continue work
+   on that branch; open a PR when a phase gate is ready for review.
 
 2. **This session's network blocks `polymarket.com`** (egress policy → 403, confirmed). So
    every `--live` path and real-data backtest is **written but untested here**; everything
    ran against a bundled offline fixture. Re-run the live paths in a networked environment.
 
-3. **The Solidity is an uncompiled, unaudited skeleton** — no toolchain was available, so it
-   was never compiled. Treat `contracts/` as a structural starting point, not working code.
+3. **The Solidity now compiles and tests pass, but is NOT externally audited.**
+   `contracts/` builds under Foundry 1.7.1 / solc 0.8.24 / OpenZeppelin v5 and passes
+   **17 tests** (incl. the HWM no-double-charge-across-drawdown vector); Slither findings
+   are triaged in `contracts/AUDIT-PREP.md`. The loss-waterfall is still stubbed and
+   **external Audit #1 (Phase 3) remains the gate before any real capital.**
 
 And one conceptual caveat: the original "35% of agents are profitable" validation is
 **directionally true but laundered** — conditioned on the actual target user it collapses to
@@ -134,10 +134,10 @@ the founder will use to attempt those gates.
 
 | Phase (PLAN.md) | Gate | Built so far | Status |
 |---|---|---|---|
-| **0 Prove the edge** | Positive net real-money edge, documented | Sample strategies + backtester + paper-trader | ⏳ tooling ready; **edge NOT proven** (needs real $ + network) |
+| **0 Prove the edge** | Positive net real-money edge, documented | Sample strategies + backtester + paper-trader + edge screener + trade journal/gate-checker | ⏳ tooling ready; **edge NOT proven** (needs real $ + network) |
 | **1 Automate it** | Hosted bot ≥ manual; exact reconciliation; kill-switch | Venue adapter, intent→RiskGate→OMS, reconcile + kill-switch, live loop | ⏳ skeleton runs offline; **untested on live data** |
-| **2 Vault** | NAV reconciles incl. resolution; halts on divergence | `StrategyVault.sol` skeleton + tests | ⏳ **uncompiled/unaudited** |
-| **3 First outside money** | AUDIT #1 + fee/HWM correct + legal | — | ◻ not started |
+| **2 Vault** | NAV reconciles incl. resolution; halts on divergence | `StrategyVault.sol` **compiles + 17 tests pass + Slither triaged** | ⏳ **compiles & tested; not externally audited; loss-waterfall stubbed** |
+| **3 First outside money** | AUDIT #1 + fee/HWM correct + legal | fee/HWM correctness **proven by test vectors** (`AUDIT-PREP.md`); audit + legal still pending | ◻ code-correctness done; audit/legal not started |
 | **4 Safety systems** | Chaos tests pass; unattended soak | partial: RiskGate, slashing, caps, kill-switch exist as code | ◻ not hardened |
 | **5 Untrusted makers** | Sandbox escape impossible (AUDIT #2) | intent-boundary designed; **sandbox not built** | ◻ not started |
 | **6 Public launch** | Self-serve + geofence + AUDIT #3 + legal | — | ◻ not started |

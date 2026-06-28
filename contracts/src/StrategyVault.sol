@@ -29,11 +29,11 @@ contract StrategyVault is ERC4626 {
     using SafeERC20 for IERC20;
 
     // --- roles --------------------------------------------------------- //
-    address public owner;            // governance
-    address public maker;            // strategy author (posts first-loss + bond)
-    address public riskGate;         // the ONLY address allowed to slash (ADR-006)
-    address public capacityOracle;   // sets the dynamic capacity cap (ADR-007)
-    address public protocolTreasury; // receives the protocol's cut of the fee
+    address public owner;                // governance
+    address public immutable maker;      // strategy author (posts first-loss + bond); fixed per vault
+    address public riskGate;             // the ONLY address allowed to slash (ADR-006)
+    address public capacityOracle;       // sets the dynamic capacity cap (ADR-007)
+    address public protocolTreasury;     // receives the protocol's cut of the fee
 
     // --- economics ----------------------------------------------------- //
     uint256 public highWaterMarkPPS;    // per-share HWM, WAD-scaled (ADR-004)
@@ -54,6 +54,12 @@ contract StrategyVault is ERC4626 {
     event BondPosted(uint256 assets);
     event FeeCrystallized(uint256 feeAssets, uint256 makerShares, uint256 protocolShares, uint256 newHwmPPS);
     event Slashed(uint256 amount, address indexed beneficiary, string reason);
+    event RiskGateUpdated(address indexed oldGate, address indexed newGate);
+    event CapacityOracleUpdated(address indexed oldOracle, address indexed newOracle);
+    event ProtocolTreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
+    event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
+    event MinCoInvestRatioUpdated(uint256 oldBps, uint256 newBps);
+    event ProtocolFeeShareUpdated(uint256 oldBps, uint256 newBps);
 
     modifier onlyOwner() { require(msg.sender == owner, "!owner"); _; }
     modifier onlyRiskGate() { require(msg.sender == riskGate, "!riskGate"); _; }
@@ -68,6 +74,11 @@ contract StrategyVault is ERC4626 {
         address capacityOracle_,
         address treasury_
     ) ERC20(name_, symbol_) ERC4626(asset_) {
+        require(
+            maker_ != address(0) && riskGate_ != address(0) &&
+            capacityOracle_ != address(0) && treasury_ != address(0),
+            "zero addr"
+        );
         owner = msg.sender;
         maker = maker_;
         riskGate = riskGate_;
@@ -217,8 +228,38 @@ contract StrategyVault is ERC4626 {
         emit CapacityCapSet(cap);
     }
 
-    function setRiskGate(address g) external onlyOwner { riskGate = g; }
-    function setMinCoInvestRatioBps(uint256 b) external onlyOwner { minCoInvestRatioBps = b; }
-    function setProtocolFeeShareBps(uint256 b) external onlyOwner { protocolFeeShareBps = b; }
-    function transferOwnership(address o) external onlyOwner { owner = o; }
+    function setRiskGate(address g) external onlyOwner {
+        require(g != address(0), "zero addr");
+        emit RiskGateUpdated(riskGate, g);
+        riskGate = g;
+    }
+
+    function setCapacityOracle(address o) external onlyOwner {
+        require(o != address(0), "zero addr");
+        emit CapacityOracleUpdated(capacityOracle, o);
+        capacityOracle = o;
+    }
+
+    function setProtocolTreasury(address t) external onlyOwner {
+        require(t != address(0), "zero addr");
+        emit ProtocolTreasuryUpdated(protocolTreasury, t);
+        protocolTreasury = t;
+    }
+
+    function setMinCoInvestRatioBps(uint256 b) external onlyOwner {
+        emit MinCoInvestRatioUpdated(minCoInvestRatioBps, b);
+        minCoInvestRatioBps = b;
+    }
+
+    function setProtocolFeeShareBps(uint256 b) external onlyOwner {
+        require(b <= BPS, "bps>100%");          // protocol cut is a fraction of the fee
+        emit ProtocolFeeShareUpdated(protocolFeeShareBps, b);
+        protocolFeeShareBps = b;
+    }
+
+    function transferOwnership(address o) external onlyOwner {
+        require(o != address(0), "zero addr");
+        emit OwnershipTransferred(owner, o);
+        owner = o;
+    }
 }
