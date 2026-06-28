@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from typing import List
 
 from .base import Context, Strategy, depth_capped_size
-from .fees import polymarket_taker_fee_per_share
+from .fees import polymarket_taker_fee_per_share, taker_fee_per_share
 from .types import (
     BinaryMarket,
     Intent,
@@ -154,8 +154,8 @@ class ArbitrageStrategy(Strategy):
         no_m, no_px = (a, an_a) if an_a <= an_b else (b, an_b)
         if yes_m is no_m:
             return []  # both legs same venue -> that's intra-market, handled elsewhere
-        fees = (polymarket_taker_fee_per_share(yes_px, yes_m.category)
-                + polymarket_taker_fee_per_share(no_px, no_m.category))
+        fees = (taker_fee_per_share(yes_m.venue, yes_px, yes_m.category)
+                + taker_fee_per_share(no_m.venue, no_px, no_m.category))
         edge = 1.0 - yes_px - no_px - fees
         if edge <= self.p.min_edge:
             return []

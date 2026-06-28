@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import math
 
+from .types import Venue
+
 # Max taker fee per 100 shares, by category (USD). Source: Polymarket fee docs.
 _CATEGORY_CAP_PER_100 = {
     "sports": 0.75,
@@ -45,3 +47,20 @@ def kalshi_fee(price: float, contracts: float) -> float:
     """Kalshi trading fee, rounded up to the next cent."""
     p = max(0.0, min(1.0, price))
     return math.ceil(0.07 * contracts * p * (1.0 - p) * 100.0) / 100.0
+
+
+def kalshi_fee_per_share(price: float) -> float:
+    """Per-contract Kalshi fee rate (un-rounded), for edge thresholds. Unlike
+    Polymarket's min(p,1-p) schedule this peaks at p=0.50 and has no per-100 cap,
+    so the two venues' fees differ materially — which is why cross-venue edge must
+    be computed venue-by-venue."""
+    p = max(0.0, min(1.0, price))
+    return 0.07 * p * (1.0 - p)
+
+
+def taker_fee_per_share(venue: Venue, price: float, category: str) -> float:
+    """Venue-aware per-share taker fee — dispatches to the correct venue model so a
+    cross-venue arb leg is charged its own venue's fee, not the other's (ADR-016)."""
+    if venue == Venue.KALSHI:
+        return kalshi_fee_per_share(price)
+    return polymarket_taker_fee_per_share(price, category)

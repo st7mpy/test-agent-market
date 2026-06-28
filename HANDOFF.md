@@ -104,7 +104,7 @@ strategies/                   Phase 0–1 code — dependency-free Python, 11 sm
     kelly_edge.py             strategy 3: fractional Kelly + guarded mean-reversion
     sim.py                    offline order-book builders + synthetic series
     data.py                   live Polymarket API (Gamma + CLOB book/history) + fixture loader
-    venue.py                  VenueAdapter: PolymarketAdapter (live) + ReplayAdapter (offline)
+    venue.py                  VenueAdapter: Polymarket + Kalshi (live) + ReplayAdapter + CrossVenueFeed (D, ADR-016)
     execution.py              RiskGate + PaperBroker + PaperOMS (trusted execution seams)
     reconcile.py              position reconciliation (halt-on-divergence, ADR-011)
     signals.py                signal layer (F): SignalProvider seam + Brier/calibration harness (ADR-012/013)
@@ -115,8 +115,9 @@ strategies/                   Phase 0–1 code — dependency-free Python, 11 sm
   papertrade.py               paper-trade behind the venue adapter + risk gate + OMS
   live.py                     live/poll loop + reconciliation + kill-switch
   signal_demo.py              scores a research agent vs the market (Brier skill + calibration)
+  multivenue_demo.py          cross-venue arb across two (offline) venues, venue-aware fees
   phase0_journal.py           Phase-0 trade journal incl. venue-yield (rebate/reward) accounting
-  tests/test_smoke.py         11 smoke · test_signals.py 7 · test_phase0_journal.py 5 · test_oracle_risk.py 8
+  tests/test_smoke.py         11 smoke · test_signals 7 · test_phase0_journal 5 · test_oracle_risk 8 · test_multivenue 7
   README.md, LICENSE (MIT)
 
 contracts/                    Phase 2 — ERC-4626 vault (compiles, 24 Foundry tests, not audited)
@@ -146,7 +147,7 @@ the founder will use to attempt those gates.
 | **0 Prove the edge** | Positive net real-money edge, documented | Sample strategies + backtester + paper-trader + edge screener + trade journal/gate-checker | ⏳ tooling ready; **edge NOT proven** (needs real $ + network) |
 | **1 Automate it** | Hosted bot ≥ manual; exact reconciliation; kill-switch | Venue adapter, intent→RiskGate→OMS, reconcile + kill-switch, live loop, **signal layer (F) + Brier/calibration gate** | ⏳ skeleton runs offline; **untested on live data** |
 | **2 Vault** | NAV reconciles incl. resolution; halts on divergence | `StrategyVault.sol` **compiles + 24 tests pass + Slither triaged**; loss-waterfall implemented | ⏳ **compiles & tested; not externally audited** |
-| **3 First outside money** | AUDIT #1 + fee/HWM correct + legal | fee/HWM correctness **proven by test vectors** (`AUDIT-PREP.md`); audit + legal still pending | ◻ code-correctness done; audit/legal not started |
+| **3 First outside money** | AUDIT #1 + fee/HWM correct + legal | fee/HWM correctness **proven by test vectors** (`AUDIT-PREP.md`); **multi-venue (D): Kalshi adapter + CrossVenueFeed + venue-aware fees**; audit + legal still pending | ◻ code-correctness done; audit/legal not started |
 | **4 Safety systems** | Chaos tests pass; unattended soak | partial: RiskGate, slashing, caps, kill-switch, **+ oracle-risk scoring/gating + insurance fund & loss-waterfall (C)**; chaos suite pending | ◻ not hardened |
 | **5 Untrusted makers** | Sandbox escape impossible (AUDIT #2) | intent-boundary designed; **sandbox not built** | ◻ not started |
 | **6 Public launch** | Self-serve + geofence + AUDIT #3 + legal | — | ◻ not started |
@@ -164,6 +165,8 @@ python tests/test_smoke.py                 # 11 smoke tests
 python tests/test_signals.py               # 7 signal-layer tests (F)
 python tests/test_phase0_journal.py        # 5 venue-yield journal tests (B)
 python tests/test_oracle_risk.py           # 8 oracle-risk scoring/gating tests (C)
+python tests/test_multivenue.py            # 7 multi-venue + cross-venue arb tests (D)
+python multivenue_demo.py                  # cross-venue arb across two venues (D)
 python demo.py                             # intents each strategy emits
 python signal_demo.py                      # signal skill + calibration vs the market (F)
 python phase0_journal.py status            # Phase-0 net PnL incl. venue-yield + gate (B)

@@ -30,6 +30,7 @@ from .types import OrderBook
 GAMMA = "https://gamma-api.polymarket.com/markets"
 CLOB_HISTORY = "https://clob.polymarket.com/prices-history"
 CLOB_BOOK = "https://clob.polymarket.com/book"
+KALSHI = "https://api.elections.kalshi.com/trade-api/v2"
 DEFAULT_FIXTURE = os.path.join(os.path.dirname(__file__), "..", "data", "sample_history.json")
 
 PricePoint = Tuple[int, float]   # (unix_seconds, price)
@@ -98,6 +99,26 @@ def fetch_polymarket_book(token_id: str) -> OrderBook:
     asks = sorted(((float(l["price"]), float(l["size"])) for l in data.get("asks", [])),
                   key=lambda x: x[0])
     return OrderBook(bids=bids, asks=asks)
+
+
+def fetch_kalshi_books(ticker: str) -> Tuple[OrderBook, OrderBook]:
+    """Fetch a Kalshi market's books and convert to (yes_book, no_book) in [0,1].
+
+    Kalshi's public orderbook returns resting *bids* only, in cents (1-99):
+    ``{"orderbook": {"yes": [[price, size], ...], "no": [[price, size], ...]}}``.
+    A resting NO bid at q implies a YES *ask* at (1 - q), and vice-versa — so each
+    side's asks are the mirror of the other side's bids. Untested in-session
+    (network); the conversion is the part worth getting right.
+    """
+    data = _get_json(f"{KALSHI}/markets/{urllib.parse.quote(str(ticker))}/orderbook")
+    ob = data.get("orderbook", {}) or {}
+    yes = ob.get("yes") or []   # resting YES bids (price cents, size)
+    no = ob.get("no") or []     # resting NO bids
+    yes_bids = sorted(((p / 100.0, float(s)) for p, s in yes), key=lambda x: -x[0])
+    no_bids = sorted(((p / 100.0, float(s)) for p, s in no), key=lambda x: -x[0])
+    yes_asks = sorted(((1.0 - p / 100.0, float(s)) for p, s in no), key=lambda x: x[0])
+    no_asks = sorted(((1.0 - p / 100.0, float(s)) for p, s in yes), key=lambda x: x[0])
+    return OrderBook(bids=yes_bids, asks=yes_asks), OrderBook(bids=no_bids, asks=no_asks)
 
 
 # --------------------------------------------------------------------------- #

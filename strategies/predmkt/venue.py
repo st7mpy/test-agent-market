@@ -20,7 +20,7 @@ from typing import Dict, List, Optional, Tuple
 
 from .base import Fill
 from .sim import binary_market
-from .types import BinaryMarket, OrderBook, Position, Side, Token, Venue
+from .types import BinaryMarket, CrossVenuePair, OrderBook, Position, Side, Token, Venue
 
 
 class VenueAdapter(ABC):
@@ -110,13 +110,15 @@ class ReplayAdapter(VenueAdapter):
 
     def __init__(self, series: List[Tuple[int, float]], *, market_id: str = "replay",
                  category: str = "politics", outcome: str = "YES",
-                 spread: float = 0.01, depth: float = 1000.0) -> None:
+                 spread: float = 0.01, depth: float = 1000.0,
+                 venue: Venue = Venue.POLYMARKET) -> None:
         self.market_id = market_id
         self.category = category
         self._series = series
         self._outcome = outcome
         self._spread = spread
         self._depth = depth
+        self._venue_kind = venue                # which venue this replay represents
         self._i = 0
         self._venue: Dict[str, Position] = {}   # the simulated venue's own ledger
 
@@ -147,7 +149,64 @@ class ReplayAdapter(VenueAdapter):
         self._i += 1
         return binary_market(self.market_id, yes_mid=p, spread=self._spread,
                              size=self._depth, category=self.category,
-                             time_to_resolution=ttr)
+                             time_to_resolution=ttr, venue=self._venue_kind)
 
     def resolution(self) -> Optional[str]:
         return self._outcome if self._i >= len(self._series) else None
+
+
+# --------------------------------------------------------------------------- #
+class KalshiAdapter(VenueAdapter):
+    """Live adapter over Kalshi's public market-data API (ADR-016).
+
+    The second venue behind the same `VenueAdapter` seam — so no single venue is
+    load-bearing (COMPETITION.md §4: treat the venue as a frenemy). Untested
+    in-session (network); the book conversion lives in `data.fetch_kalshi_books`.
+    """
+
+    def __init__(self, ticker: str, *, poll_interval_s: float = 2.0,
+                 category: str = "politics", time_to_resolution: float = 1000.0) -> None:
+        from . import data
+        self._data = data
+        self.market_id = ticker
+        self.category = category
+        self._ticker = ticker
+        self._poll = poll_interval_s
+        self._ttr = time_to_resolution
+
+    def fetch_market(self) -> Optional[BinaryMarket]:
+        yes_book, no_book = self._data.fetch_kalshi_books(self._ticker)
+        return BinaryMarket(self.market_id, self.category, yes_book, no_book,
+                            self._ttr, Venue.KALSHI)
+
+    def resolution(self) -> Optional[str]:
+        return None   # TODO: query the Kalshi settlement endpoint when networked
+
+    def positions(self) -> Dict[str, Position]:
+        return {}     # needs the authenticated Kalshi portfolio endpoint
+
+
+# --------------------------------------------------------------------------- #
+class CrossVenueFeed:
+    """Aggregate two single-market adapters for the SAME real-world event into a
+    `CrossVenuePair` the ArbitrageStrategy consumes (ADR-016). This is the heart of
+    multi-venue (D): the same strategy + execution code now sees >1 venue.
+
+    `resolution_rules_match` is an ASSERTED property — you cannot auto-verify that two
+    venues resolve on identical criteria, so it defaults to False (treat as basis
+    risk). Only set it True when a human/monitor has confirmed the settlement rules
+    genuinely match; otherwise the strategy correctly refuses the trade.
+    """
+
+    def __init__(self, adapter_a: VenueAdapter, adapter_b: VenueAdapter, *,
+                 resolution_rules_match: bool = False) -> None:
+        self.a = adapter_a
+        self.b = adapter_b
+        self.resolution_rules_match = resolution_rules_match
+
+    def fetch_pair(self) -> Optional[CrossVenuePair]:
+        ma = self.a.fetch_market()
+        mb = self.b.fetch_market()
+        if ma is None or mb is None:
+            return None
+        return CrossVenuePair(ma, mb, self.resolution_rules_match)

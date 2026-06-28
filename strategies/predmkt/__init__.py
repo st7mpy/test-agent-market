@@ -43,6 +43,13 @@ from .signals import (
 )
 from .oracle_risk import OracleRiskModel, OracleRiskParams
 from .execution import RiskGate, RiskLimits
+from .venue import (
+    VenueAdapter, PolymarketAdapter, KalshiAdapter, ReplayAdapter, CrossVenueFeed,
+)
+from .fees import (
+    polymarket_taker_fee, polymarket_taker_fee_per_share,
+    kalshi_fee, kalshi_fee_per_share, taker_fee_per_share,
+)
 
 __all__ = [
     "Context", "Fill", "Strategy",
@@ -56,4 +63,7 @@ __all__ = [
     "SignalReport", "as_fair_value_fn", "brier_score", "brier_skill_score",
     "calibration_curve", "expected_calibration_error", "evaluate_provider",
     "OracleRiskModel", "OracleRiskParams", "RiskGate", "RiskLimits",
+    "VenueAdapter", "PolymarketAdapter", "KalshiAdapter", "ReplayAdapter", "CrossVenueFeed",
+    "polymarket_taker_fee", "polymarket_taker_fee_per_share",
+    "kalshi_fee", "kalshi_fee_per_share", "taker_fee_per_share",
 ]
