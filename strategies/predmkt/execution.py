@@ -18,6 +18,7 @@ from typing import List, Optional, Sequence, Tuple
 
 from .base import Context, Fill
 from .fees import polymarket_taker_fee
+from .oracle_risk import OracleRiskModel
 from .types import (
     BinaryMarket, CancelAll, Intent, LimitOrder, Merge, Portfolio, Side, Split,
     TIF, Token, Venue,
@@ -32,14 +33,30 @@ class RiskLimits:
     max_book_fraction: float = 0.5          # taker order <= this * visible depth
     allowed_categories: Optional[Sequence[str]] = None
     allowed_venues: Optional[Sequence[Venue]] = None
+    # oracle-risk controls (ADR-014; require an OracleRiskModel on the gate to take effect)
+    max_oracle_risk: Optional[float] = None  # refuse NEW exposure to markets scoring above this
+    oracle_risk_sizing: bool = True          # also shrink the notional cap by (1 - score)
 
 
 class RiskGate:
     """Single validated choke point. Returns (approved, reason)."""
 
-    def __init__(self, limits: RiskLimits | None = None) -> None:
+    def __init__(self, limits: RiskLimits | None = None,
+                 oracle_model: OracleRiskModel | None = None) -> None:
         self.limits = limits or RiskLimits()
+        self.oracle_model = oracle_model
         self.kill_switch = False
+
+    def _oracle_cap(self, m: BinaryMarket, base_cap: float) -> Tuple[bool, str, float]:
+        """Apply oracle-risk gating to an exposure-INCREASING order. Returns
+        (ok, reason, effective_cap). No-op unless a model + max_oracle_risk are set."""
+        L = self.limits
+        if self.oracle_model is None or L.max_oracle_risk is None:
+            return True, "ok", base_cap
+        s = self.oracle_model.score(m)
+        if s > L.max_oracle_risk:
+            return False, f"oracle risk {s:.2f} > cap {L.max_oracle_risk:.2f}", base_cap
+        return True, "ok", base_cap * (1.0 - s) if L.oracle_risk_sizing else base_cap
 
     def check(self, it: Intent, pf: Portfolio, m: BinaryMarket) -> Tuple[bool, str]:
         if self.kill_switch:
@@ -49,20 +66,33 @@ class RiskGate:
             return True, "ok"
         if isinstance(it, Merge):
             return True, "ok"                # only reduces exposure
-        if isinstance(it, Split):
-            if it.usdc > L.max_order_notional:
-                return False, f"split notional {it.usdc:.0f} > cap"
+        if isinstance(it, Split):            # creates YES+NO -> increases exposure
+            ok, reason, cap = self._oracle_cap(m, L.max_order_notional)
+            if not ok:
+                return False, reason
+            if it.usdc > cap + 1e-9:
+                return False, f"split notional {it.usdc:.0f} > cap {cap:.0f}"
             return True, "ok"
         if isinstance(it, LimitOrder):
             if L.allowed_categories is not None and m.category not in L.allowed_categories:
                 return False, f"category {m.category} not in mandate"
             if L.allowed_venues is not None and m.venue not in L.allowed_venues:
                 return False, f"venue {m.venue} not in mandate"
-            if it.size * it.price > L.max_order_notional:
-                return False, "order notional > cap"
             pos = pf.position(it.market_id)
             cur = pos.yes if it.token == Token.YES else pos.no
             proj = cur + (it.size if it.side == Side.BUY else -it.size)
+            increasing = abs(proj) > abs(cur) + 1e-9
+
+            # oracle-risk gating applies ONLY to exposure-increasing orders, so a
+            # market that turns risky can always be EXITED (ADR-014).
+            cap = L.max_order_notional
+            if increasing:
+                ok, reason, cap = self._oracle_cap(m, L.max_order_notional)
+                if not ok:
+                    return False, reason
+            if it.size * it.price > cap + 1e-9:
+                msg = "order notional > cap" if cap >= L.max_order_notional else f"oracle-risk-scaled notional cap {cap:.0f}"
+                return False, msg
             if abs(proj) > L.max_position_shares:
                 return False, f"projected position {proj:.0f} > limit"
             if it.tif in (TIF.IOC, TIF.FOK):        # taker depth guard
