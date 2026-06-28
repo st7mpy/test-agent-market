@@ -100,6 +100,18 @@ Each records the **choice**, the **rationale**, the **alternatives rejected**, a
 **Rejected:** *trust internal ledger* (silent corruption → mispriced shares → loss/fraud).
 **Consequences:** reconciliation jobs, conservative marks for pending-resolution positions, and accepted false-positive halts.
 
+### ADR-012 — Research signals are a typed provider seam, off the execution hot path (differentiator F)
+**Choice:** fair-value estimates come from a `SignalProvider` (`predmkt/signals.py`) that only *proposes* a probability; it is adapted into the strategy's `fair_value_fn` hook and its output still flows through the normal `strategy → intent → Risk Gate` path. The production provider is an **LLM research agent** (news / base-rates / sentiment), but it is one interface implementation, not a privileged component.
+**Rationale:** an LLM is non-deterministic, slow, and occasionally wrong — it must never sit in the order-signing path or be able to move funds directly. Making it a provider that emits a number behind the existing intent boundary (ADR-002) means a bad signal can at worst propose a trade the Risk Gate then bounds/refuses; it can't bypass limits. A typed seam also lets us swap providers (LLM, devigged sportsbook, other-venue implied) and A/B them without touching the hot path. This is the *legitimate* use of "AI agents" here — signal generation, not autonomous execution.
+**Rejected:** *LLM in the hot path* (latency, non-determinism, and an unbounded failure mode next to keys); *bespoke per-strategy plumbing* (no common validation, no swap­pability).
+**Consequences:** signals are advisory; the reference LLM provider (Claude, e.g. `claude-opus-4-8`) is a future drop-in behind `SignalProvider` and must be validated by ADR-013 before it is allowed to size capital.
+
+### ADR-013 — A signal must prove Brier *skill* over the market + calibration before it sizes capital
+**Choice:** no provider influences sizing until it shows, on **resolved real-money markets**, (a) a positive **Brier skill score** vs the market-implied null model and (b) calibration within tolerance (ECE ≤ 10%). The gate is `SignalReport.trustworthy` in `predmkt/signals.py`.
+**Rationale:** the market price is already a strong, free forecast. A signal that doesn't beat it adds nothing; a *miscalibrated* signal (confident when it shouldn't be) actively missizes Kelly bets and is worse than using the price. Brier skill answers "does it add information?"; calibration answers "can I trust its magnitudes?" — Kelly sizing needs both. Scoring against the market-implied null (not against 0.5) makes the bar honest: beating the market, not beating ignorance. This mirrors ADR-010 (backtests don't gate AUM; only real-money does) for signals.
+**Rejected:** *trust backtested/claimed accuracy* (overfit, unverifiable); *score vs a naïve 0.5 baseline* (flatters any signal); *skill-only with no calibration check* (a high-skill but overconfident signal still wrecks Kelly sizing).
+**Consequences:** providers need a sustained resolved-market sample before they're trusted (skill is hard to resolve in small samples — see `signal_demo.py`); the harness (Brier, skill, reliability curve, ECE) is part of the maker-onboarding and signal-promotion pipeline.
+
 ---
 
 ## 4. Trust boundaries

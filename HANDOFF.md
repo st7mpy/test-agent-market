@@ -106,12 +106,15 @@ strategies/                   Phase 0–1 code — dependency-free Python, 11 sm
     venue.py                  VenueAdapter: PolymarketAdapter (live) + ReplayAdapter (offline)
     execution.py              RiskGate + PaperBroker + PaperOMS (trusted execution seams)
     reconcile.py              position reconciliation (halt-on-divergence, ADR-011)
+    signals.py                signal layer (F): SignalProvider seam + Brier/calibration harness (ADR-012/013)
   data/sample_history.json    offline price fixture (Polymarket schema, resolves YES)
   demo.py                     prints intents each strategy emits
   backtest.py                 price-replay backtester (--live or fixture)
   papertrade.py               paper-trade behind the venue adapter + risk gate + OMS
   live.py                     live/poll loop + reconciliation + kill-switch
-  tests/test_smoke.py         11 dependency-free smoke tests
+  signal_demo.py              scores a research agent vs the market (Brier skill + calibration)
+  phase0_journal.py           Phase-0 trade journal incl. venue-yield (rebate/reward) accounting
+  tests/test_smoke.py         11 smoke tests · test_signals.py 7 · test_phase0_journal.py 5
   README.md, LICENSE (MIT)
 
 contracts/                    Phase 2 — ERC-4626 vault SKELETON (uncompiled, unaudited)
@@ -135,7 +138,7 @@ the founder will use to attempt those gates.
 | Phase (PLAN.md) | Gate | Built so far | Status |
 |---|---|---|---|
 | **0 Prove the edge** | Positive net real-money edge, documented | Sample strategies + backtester + paper-trader + edge screener + trade journal/gate-checker | ⏳ tooling ready; **edge NOT proven** (needs real $ + network) |
-| **1 Automate it** | Hosted bot ≥ manual; exact reconciliation; kill-switch | Venue adapter, intent→RiskGate→OMS, reconcile + kill-switch, live loop | ⏳ skeleton runs offline; **untested on live data** |
+| **1 Automate it** | Hosted bot ≥ manual; exact reconciliation; kill-switch | Venue adapter, intent→RiskGate→OMS, reconcile + kill-switch, live loop, **signal layer (F) + Brier/calibration gate** | ⏳ skeleton runs offline; **untested on live data** |
 | **2 Vault** | NAV reconciles incl. resolution; halts on divergence | `StrategyVault.sol` **compiles + 17 tests pass + Slither triaged** | ⏳ **compiles & tested; not externally audited; loss-waterfall stubbed** |
 | **3 First outside money** | AUDIT #1 + fee/HWM correct + legal | fee/HWM correctness **proven by test vectors** (`AUDIT-PREP.md`); audit + legal still pending | ◻ code-correctness done; audit/legal not started |
 | **4 Safety systems** | Chaos tests pass; unattended soak | partial: RiskGate, slashing, caps, kill-switch exist as code | ◻ not hardened |
@@ -152,7 +155,11 @@ the founder will use to attempt those gates.
 # --- Python (no dependencies; runs offline) ---
 cd strategies
 python tests/test_smoke.py                 # 11 smoke tests
+python tests/test_signals.py               # 7 signal-layer tests (F)
+python tests/test_phase0_journal.py        # 5 venue-yield journal tests (B)
 python demo.py                             # intents each strategy emits
+python signal_demo.py                      # signal skill + calibration vs the market (F)
+python phase0_journal.py status            # Phase-0 net PnL incl. venue-yield + gate (B)
 python backtest.py --strategy mm           # price-replay backtest (fixture)
 python backtest.py --strategy kelly
 python papertrade.py --strategy mm         # paper-trade via adapter + risk gate + OMS

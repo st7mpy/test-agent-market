@@ -28,6 +28,19 @@ from .types import (
 from .arbitrage import ArbitrageStrategy, ArbParams
 from .market_maker import MarketMakerStrategy, MMParams
 from .kelly_edge import KellyEdgeStrategy, KellyParams
+from .signals import (
+    Signal,
+    SignalProvider,
+    MarketImpliedProvider,
+    ExternalPriorProvider,
+    SignalReport,
+    as_fair_value_fn,
+    brier_score,
+    brier_skill_score,
+    calibration_curve,
+    expected_calibration_error,
+    evaluate_provider,
+)
 
 __all__ = [
     "Context", "Fill", "Strategy",
@@ -37,4 +50,7 @@ __all__ = [
     "ArbitrageStrategy", "ArbParams",
     "MarketMakerStrategy", "MMParams",
     "KellyEdgeStrategy", "KellyParams",
+    "Signal", "SignalProvider", "MarketImpliedProvider", "ExternalPriorProvider",
+    "SignalReport", "as_fair_value_fn", "brier_score", "brier_skill_score",
+    "calibration_curve", "expected_calibration_error", "evaluate_provider",
 ]
