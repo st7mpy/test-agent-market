@@ -50,6 +50,10 @@ from .fees import (
     polymarket_taker_fee, polymarket_taker_fee_per_share,
     kalshi_fee, kalshi_fee_per_share, taker_fee_per_share,
 )
+from .attestation import (
+    Attestation, AttestationService, commit_positions,
+    verify_attestation, verify_position_reveal,
+)
 
 __all__ = [
     "Context", "Fill", "Strategy",
@@ -66,4 +70,6 @@ __all__ = [
     "VenueAdapter", "PolymarketAdapter", "KalshiAdapter", "ReplayAdapter", "CrossVenueFeed",
     "polymarket_taker_fee", "polymarket_taker_fee_per_share",
     "kalshi_fee", "kalshi_fee_per_share", "taker_fee_per_share",
+    "Attestation", "AttestationService", "commit_positions",
+    "verify_attestation", "verify_position_reveal",
 ]

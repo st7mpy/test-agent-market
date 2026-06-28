@@ -52,8 +52,10 @@ competitive analysis, TAM, and the pivot are in the docs below.
 |---|---|
 | `docs/EVALUATION.md` | Feasibility critique, comp analysis, the "35%" teardown, TAM, why the pivot |
 | `docs/DESIGN.md` | System design: components, vault/fee mechanics, custody split, phased build |
-| `docs/ARCHITECTURE.md` | The **why**: 11 ADRs, trust boundaries, failure modes, interface contracts |
-| `docs/PLAN.md` | Phase-by-phase plan to 100% with checkpoints, kill criteria, invariants |
+| `docs/ARCHITECTURE.md` | The **why**: 18 ADRs (incl. the differentiators), trust boundaries, failure modes |
+| `docs/PLAN.md` | Phase-by-phase plan to 100% + the 2026 moat re-eval / differentiator map |
+| `docs/DIFFERENTIATION.md` · `docs/COMPETITION.md` | 2026 competitive scan + the moat (B/F/D/C/A-lite/E) |
+| `docs/TEE-DESIGN.md` | A-lite design: TEE-private positions + attested track records (ADR-018) |
 | `docs/Concept-Brief.pdf` | 7-page styled brief (idea, users, TAM, architecture, user flows) |
 
 ---
@@ -109,6 +111,7 @@ strategies/                   Phase 0–1 code — dependency-free Python, 11 sm
     reconcile.py              position reconciliation (halt-on-divergence, ADR-011)
     signals.py                signal layer (F): SignalProvider seam + Brier/calibration harness (ADR-012/013)
     oracle_risk.py            oracle/resolution-risk scoring for the RiskGate (C, ADR-014)
+    attestation.py            attested track records / TEE flow stub (A-lite, ADR-018)
   data/sample_history.json    offline price fixture (Polymarket schema, resolves YES)
   demo.py                     prints intents each strategy emits
   backtest.py                 price-replay backtester (--live or fixture)
@@ -117,7 +120,7 @@ strategies/                   Phase 0–1 code — dependency-free Python, 11 sm
   signal_demo.py              scores a research agent vs the market (Brier skill + calibration)
   multivenue_demo.py          cross-venue arb across two (offline) venues, venue-aware fees
   phase0_journal.py           Phase-0 trade journal incl. venue-yield (rebate/reward) accounting
-  tests/test_smoke.py         11 smoke · test_signals 7 · test_phase0_journal 5 · test_oracle_risk 8 · test_multivenue 7
+  tests/test_smoke.py         11 smoke · signals 7 · phase0_journal 5 · oracle_risk 8 · multivenue 7 · attestation 5
   README.md, LICENSE (MIT)
 
 contracts/                    Phase 2/6 — vaults (compile, 31 Foundry tests, not audited)
@@ -151,7 +154,7 @@ the founder will use to attempt those gates.
 | **2 Vault** | NAV reconciles incl. resolution; halts on divergence | `StrategyVault.sol` **compiles + 24 tests pass + Slither triaged**; loss-waterfall implemented | ⏳ **compiles & tested; not externally audited** |
 | **3 First outside money** | AUDIT #1 + fee/HWM correct + legal | fee/HWM correctness **proven by test vectors** (`AUDIT-PREP.md`); **multi-venue (D): Kalshi adapter + CrossVenueFeed + venue-aware fees**; audit + legal still pending | ◻ code-correctness done; audit/legal not started |
 | **4 Safety systems** | Chaos tests pass; unattended soak | partial: RiskGate, slashing, caps, kill-switch, **+ oracle-risk scoring/gating + insurance fund & loss-waterfall (C)**; chaos suite pending | ◻ not hardened |
-| **5 Untrusted makers** | Sandbox escape impossible (AUDIT #2) | intent-boundary designed; **sandbox not built** | ◻ not started |
+| **5 Untrusted makers** | Sandbox escape impossible (AUDIT #2) | intent-boundary designed; **A-lite TEE design + attestation-flow stub (A, ADR-018, `docs/TEE-DESIGN.md`)**; real enclave + pentest/AUDIT #2 gated | ◻ design + stub; enclave not built |
 | **6 Public launch** | Self-serve + geofence + AUDIT #3 + legal | **tranched vaults (E): `TranchedVault.sol` senior/junior, 7 tests**; UI/KYC/geofence not started | ◻ tranching done; launch infra not started |
 | **7 Harden to 100%** | Full feature matrix + no Sev-1 soak | — | ◻ not started |
 | **8 Kalshi rail** | (post-100%) regulatory decision | — | ◻ explicitly deferred |
@@ -168,6 +171,7 @@ python tests/test_signals.py               # 7 signal-layer tests (F)
 python tests/test_phase0_journal.py        # 5 venue-yield journal tests (B)
 python tests/test_oracle_risk.py           # 8 oracle-risk scoring/gating tests (C)
 python tests/test_multivenue.py            # 7 multi-venue + cross-venue arb tests (D)
+python tests/test_attestation.py           # 5 attested-track-record / TEE-flow tests (A-lite)
 python multivenue_demo.py                  # cross-venue arb across two venues (D)
 python demo.py                             # intents each strategy emits
 python signal_demo.py                      # signal skill + calibration vs the market (F)
