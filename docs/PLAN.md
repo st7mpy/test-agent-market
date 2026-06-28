@@ -6,6 +6,48 @@
 
 ---
 
+## Moat re-evaluation (2026) — the simple vault is no longer white space
+
+A competitive re-scan (`docs/DIFFERENTIATION.md`, `docs/COMPETITION.md`) shows the naïve
+"vault marketplace" has **already shipped**: Moneytalks (0% + 10% profit-only — our *exact*
+fee) and PolyFund (≤3% + ≤30%) both run pooled-capital Polymarket vaults today. Demand is
+validated; the wrapper is commoditized. The moat is therefore **not** the vault — it is the
+**stacked combination no competitor has**, defended by what incumbents structurally *can't* do
+(positions forced on-chain; zero-sum directional alpha; uninsured oracle risk).
+
+**Moat statement.** *The professional prediction-market vault with private, un-copyable verified
+positions, market-neutral venue-yield, and oracle-failure protection — aligned by maker first-loss
++ slashable bond under mechanical slashing and dynamic capacity caps.*
+
+**The wedge (this changes what Phase 0 proves).** Lead with **venue-yield market-making (B)**, not
+directional alpha. Polymarket pays makers **20–25% of taker fees as rebates** plus **liquidity
+rewards for resting orders near mid** — a positive-sum, market-neutral, easier-to-sell yield stream
+that sidesteps the laundered "35% of agents are profitable" stat entirely. Directional alpha becomes
+a secondary track, not the existential bet.
+
+**Differentiators → phases:**
+
+| Diff | What | Phase | Effort | Defensibility |
+|---|---|---|---|---|
+| **B** venue-yield MM vault *(the wedge)* | harvest rebates + liquidity rewards, market-neutral | **0–1** | low (coded) | medium |
+| **F** AI research-agent signal layer | calibrated fair-value probabilities, off the hot path | 1+ | low (pluggable hook) | low–med |
+| **D** multi-venue aggregation | Kalshi/Limitless/… via pmxt/agg.market; lifts the capacity ceiling | 3+ | medium | medium |
+| **C** oracle controls + depositor insurance | cap dispute-prone markets; insurance fund from fee + slashing | 4 | medium | **high** |
+| **A-lite** TEE-private positions + attested record | hide positions from public/copycats; enclave attests results | 5 | high | **highest** |
+| **E** tranched / principal-protected vaults | senior (yield-funded, paid first) + junior (first-loss) | 6 | medium | medium |
+
+**Architecture deltas** (full rationale in `docs/DIFFERENTIATION.md`):
+- **A-lite is the committed TEE target** — the platform still sees positions (the RiskGate and
+  key-holding OMS require it); only the *public/copycats* are blind. This composes with the existing
+  intent→RiskGate→OMS path and ADR-009. A-full (keys + RiskGate inside the enclave) reworks custody
+  (ADR-008) and reconciliation (ADR-011) — a research track, too heavy for a solo Phase 5.
+- **C** extends the existing `RiskGate` (per-market oracle-risk score) and routes the vault's slash
+  waterfall to the insurance fund.
+- **E** is the *same machinery* as the `_applyLoss` loss-waterfall stub already in `StrategyVault.sol`
+  — building it closes that open question (DESIGN §11) rather than adding new surface.
+
+---
+
 ## What makes this plan "fool-proof"
 
 Three mechanisms run *across every phase* and are the reason a single mistake can't sink the project or other people's money:
@@ -61,9 +103,11 @@ P7 Harden to 100% ◀── P6 Public launch ◀── P5 Untrusted makers ◀�
 
 **Why first:** the entire business is a wrapper around alpha. If the alpha isn't real, no amount of engineering matters. This is the cheapest possible place to fail.
 
+**▶ Wedge (B):** the edge to prove *first* is **venue-subsidized market-neutral yield** — maker rebates (20–25% of taker fees) + liquidity rewards on resting orders near mid, harvested by `strategies/predmkt/market_maker.py` — measured **net of a rebate haircut** (assume the program tightens). This is positive-sum and easier to sell than directional alpha, which becomes the secondary track. Track both with `strategies/phase0_journal.py`, which records rebate/reward **income** alongside fee/gas **cost**.
+
 **Deliverables**
-- Trade your own capital on Polymarket (manually or with a throwaway script) on the strategy class you intend to productize.
-- Log every fill, fee, and gas cost; compute **net** PnL.
+- Trade your own capital on Polymarket (manually or with a throwaway script), leading with the **market-making/venue-yield** strategy class; directional alpha as a secondary track.
+- Log every fill, fee, gas cost, **and rebate/liquidity-reward income**; compute **net** PnL (and net-of-haircut yield).
 
 **✅ Checkpoint (go/no-go)**
 - A documented track record over a meaningful sample (e.g. ≥ 100 trades and ≥ 6–8 weeks spanning ≥ 1 event resolution) showing **positive net-of-all-costs** PnL with a Sharpe you'd stake money on.
@@ -82,6 +126,8 @@ P7 Harden to 100% ◀── P6 Public launch ◀── P5 Untrusted makers ◀�
 - Your strategy running hosted (still your capital, no vault, no outside money).
 - Basic reconciliation (internal position/PnL vs venue) + manual kill-switch.
 - Threat model written.
+
+**▶ Differentiator (F):** the `fair_value_fn` hook in `strategies/predmkt/kelly_edge.py` is where an **LLM research-agent signal layer** plugs in — calibrated fair-value probabilities from news/base-rates, Brier-scored, kept **off the hot path** (it only proposes a probability; the Risk Gate still gates every intent). Low effort, the legitimate use of "AI agents" here.
 
 **✅ Checkpoint**
 - Hosted bot **matches or beats** your Phase-0 manual track record over a live period.
@@ -141,6 +187,8 @@ P7 Harden to 100% ◀── P6 Public launch ◀── P5 Untrusted makers ◀�
 - **Global + per-vault kill-switch**; automated incident response (auto-halt + alert).
 - Observability: metrics, logs, alerting, dashboards.
 
+**▶ Differentiator (C — high moat):** extend the Risk engine with a **per-market oracle-risk score** (cap or refuse exposure to dispute-prone / thin-oracle markets — the $7M UMA false-settlement class of risk) and stand up a **depositor insurance fund** funded by the protocol fee + slashing proceeds. Position: *"the only prediction-market vault that protects you from oracle failure."* Both build on the existing `RiskGate` (`predmkt/execution.py`) and the vault's slash waterfall.
+
 **✅ Checkpoint (adversarial/chaos tests all pass)**
 - Simulated limit breach → **slash fires**, waterfall compensates depositors.
 - Simulated NAV divergence → **halt**. Simulated venue outage → **safe** (no bad fills, clean recovery).
@@ -156,8 +204,10 @@ P7 Harden to 100% ◀── P6 Public launch ◀── P5 Untrusted makers ◀�
 
 **Why this is the highest-risk phase:** until now the only strategy was *yours* (trusted). Now untrusted code runs near (but never touching) other people's money.
 
+**▶ Differentiator (A-lite — highest moat):** the sandbox **is a TEE** (Phala/Oasis), not just Firecracker. It isolates untrusted maker code *and* keeps **live positions private from the public/copycats** while the enclave emits a **cryptographically attested** track record — "trade with proof, not trust." The platform still sees positions (the Risk Gate requires them); only outsiders are blind, which is what makes "private strategy + verified record" actually hold. Copy-bots cannot copy what they cannot see (resolves the transparency-vs-alpha-leak tension in ADR-009).
+
 **Deliverables**
-- **Sandboxed strategy runtime** (Firecracker/gVisor): no key access, no egress except feed + intent bus (invariant #1).
+- **Sandboxed strategy runtime — a TEE** (Phala/Oasis enclave; Firecracker/gVisor as the inner isolation): no key access, no egress except feed + intent bus (invariant #1); enclave attestation of results.
 - **Maker SDK** (Python/TS) + reproducible, content-addressed backtester.
 - Incubation flow: external maker runs **own capital** → builds a **verified real-money track record** → unlocks outside-AUM tier (gated by track record + co-invest + bond).
 - **External security audit #2** focused on **sandbox escape + key isolation** (the rug surface).
@@ -181,6 +231,8 @@ P7 Harden to 100% ◀── P6 Public launch ◀── P5 Untrusted makers ◀�
 - **Public marketplace UI**: browse/filter vaults by verified performance, drawdown, capacity headroom, maker skin-in-game, fee tier.
 - **Track-record pages** (verified, immediate) + **delayed/obfuscated live position disclosure** (anti-copy).
 - Capacity-managed deposits (queue/reject past cap); depositor monitoring + notifications.
+
+**▶ Differentiator (E):** offer **tranched** vaults — a **senior** tranche (principal-protected, lower variance, funded from the market-neutral venue-yield, paid first) + a **junior** tranche (first-loss, higher upside). This widens the funnel to conservative capital and is the *same machinery* as the maker first-loss / `_applyLoss` waterfall stub in `StrategyVault.sol` — implementing it here closes that open question.
 - **External security audit #3 (full-system)** + **public bug bounty** live.
 - Legal: public ToS/risk disclosures, geofencing enforcement verified, offshore structure sign-off for public operation.
 - Load/scale test to target concurrency.
