@@ -18,14 +18,19 @@ before any outside capital.
 cd contracts
 forge install OpenZeppelin/openzeppelin-contracts foundry-rs/forge-std --no-git
 forge build          # Compiler run successful
-forge test           # 17 passed; 0 failed
+forge test           # 24 passed; 0 failed
 slither . --filter-paths "lib/" --exclude-dependencies
 ```
 
-## Test coverage (17 tests)
+## Test coverage (24 tests)
 
 `test/StrategyVault.t.sol` (5 — happy path):
 co-invest gating, capacity-cap revert, profit-only HWM fee, slash access-control.
+
+`test/StrategyVaultInsurance.t.sol` (7 — insurance fund + loss waterfalls, ADR-015):
+fund excluded from NAV; slash-to-insurance reclassification; strategy-loss waterfall
+(first-loss → bond → depositors); oracle-loss covered by the insurance fund (maker
+capital untouched); residual-beyond-buffer to depositors; loss fns are RiskGate-only.
 
 `test/StrategyVaultProperties.t.sol` (12 — adversarial money-path vectors):
 
@@ -51,7 +56,7 @@ halt-on-divergence tests in `strategies/tests/test_smoke.py`.
 
 ## Slither triage
 
-First pass: 17 findings. After hardening: **4 findings, all reviewed and accepted.**
+First pass: 17 findings. After hardening + the insurance-fund pass: **3 findings, all reviewed and accepted.**
 
 **Fixed:**
 - *missing-zero-check* — added zero-address `require`s to the constructor and all
@@ -63,20 +68,25 @@ First pass: 17 findings. After hardening: **4 findings, all reviewed and accepte
   and `protocolTreasury` gained rotation setters (operational key-rotation safety).
 - Added a `protocolFeeShareBps <= 100%` bound.
 
-**Accepted (with rationale) — remaining 4:**
+**Resolved since the last pass:**
+- *dead-code* `_applyLoss`: **gone** — the loss-waterfall is now live code
+  (`applyStrategyLoss` + `coverOracleLoss`, ADR-015), so the detector no longer flags it.
+- The insurance-fund / waterfall functions introduced **no new findings** (events on every
+  state change, all RiskGate-only, underflow-safe min() draws).
+
+**Accepted (with rationale) — remaining 3:**
 - *incorrect-equality* ×3 (`supply == 0`, `feeAssets == 0`): exact-zero checks on
   unsigned internal counts. The detector targets equality on manipulable values
   (balances/timestamps); these are control-flow guards and are correct.
-- *dead-code* `_applyLoss`: the **intentional** junior loss-waterfall stub
-  (reverts), flagged `SKELETON:` inline. It is the open question in DESIGN.md §11 —
-  left as a documented placeholder for settlement integration, not removed, so the
-  design intent stays visible to the auditor.
 
 ## Still open before Audit #1 sign-off (NOT done here)
 
-- Junior/senior **loss-waterfall** (`_applyLoss`) — needs settlement integration.
 - **Per-share HWM equalization** on mid-period deposits/withdrawals (depositors who
   enter above/below the HWM are not individually equalized).
+- **Trusted loss input:** `applyStrategyLoss` / `coverOracleLoss` take the loss amount
+  as a RiskGate-supplied number (the authoritative off-chain reconciliation, ADR-011).
+  A wrong/oversized value mis-draws the buckets or hands the insurance fund to depositors,
+  so the RiskGate's loss-measurement path must itself be in the audit scope.
 - **Reentrancy** review of the deposit/withdraw + fee-mint path (no `nonReentrant`
   guards yet; OZ ERC4626 + SafeERC20 are the only protections).
 - **Pause / emergency-halt** on the contract itself (today the halt lives off-chain).

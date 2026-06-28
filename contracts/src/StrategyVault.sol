@@ -17,14 +17,16 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 ///           * dynamic capacity cap (set by the off-chain Capacity Oracle);
 ///           * mechanical slashing callable ONLY by the RiskGate.
 ///
-/// @dev  ⚠️ SKELETON — NOT AUDITED, NOT COMPILED in-session, NOT FOR PRODUCTION.
+/// @dev  ⚠️ NOT EXTERNALLY AUDITED, NOT FOR PRODUCTION (compiles + tested under Foundry).
 ///       Deliberate simplifications, flagged inline with `SKELETON:`:
-///       (1) the maker bond + first-loss sit in the vault but are excluded from
-///           `totalAssets()` so they do not distort depositor share price;
-///       (2) true junior/senior LOSS-WATERFALL accounting (first-loss absorbing
-///           strategy losses before depositors) requires integration with
-///           settlement and is left as a documented stub (`_applyLoss`). This is
-///           the open question called out in DESIGN.md §11.
+///       (1) the maker bond + first-loss + insurance fund sit in the vault but are
+///           excluded from `totalAssets()` so they do not distort depositor share price;
+///           a production design may escrow them externally.
+///       The junior/senior LOSS-WATERFALL (DESIGN.md §11) is now implemented:
+///       `applyStrategyLoss` (first-loss → bond → depositors) and `coverOracleLoss`
+///       (insurance fund → depositors) — both RiskGate-only, driven by the authoritative
+///       off-chain loss measurement (ADR-011/015). The loss amount is trusted input, so
+///       these are privileged and must be called only against a reconciled realized loss.
 contract StrategyVault is ERC4626 {
     using SafeERC20 for IERC20;
 
@@ -45,6 +47,9 @@ contract StrategyVault is ERC4626 {
     uint256 public makerFirstLoss;      // junior tranche (asset units)
     uint256 public makerBond;           // locked, slashable (asset units)
 
+    // --- depositor insurance fund (excluded from share NAV) ------------ //
+    uint256 public insuranceFund;       // oracle-failure backstop (ADR-014/015)
+
     uint256 internal constant WAD = 1e18;
     uint256 internal constant BPS = 10_000;
 
@@ -60,6 +65,10 @@ contract StrategyVault is ERC4626 {
     event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
     event MinCoInvestRatioUpdated(uint256 oldBps, uint256 newBps);
     event ProtocolFeeShareUpdated(uint256 oldBps, uint256 newBps);
+    event InsuranceFunded(address indexed from, uint256 assets);
+    event SlashedToInsurance(uint256 amount, string reason);
+    event StrategyLossApplied(uint256 loss, uint256 fromFirstLoss, uint256 fromBond, uint256 residualToDepositors);
+    event OracleLossCovered(uint256 loss, uint256 fromInsurance, uint256 residualToDepositors);
 
     modifier onlyOwner() { require(msg.sender == owner, "!owner"); _; }
     modifier onlyRiskGate() { require(msg.sender == riskGate, "!riskGate"); _; }
@@ -91,12 +100,13 @@ contract StrategyVault is ERC4626 {
     }
 
     // ------------------------------------------------------------------ //
-    // NAV: exclude maker bond + first-loss so they don't inflate share price.
+    // NAV: exclude maker bond + first-loss + insurance fund so reserved
+    // capital doesn't inflate depositor share price.
     // SKELETON: a production design would escrow these outside the vault.
     // ------------------------------------------------------------------ //
     function totalAssets() public view override returns (uint256) {
         uint256 bal = IERC20(asset()).balanceOf(address(this));
-        uint256 reserved = makerBond + makerFirstLoss;
+        uint256 reserved = makerBond + makerFirstLoss + insuranceFund;
         return bal > reserved ? bal - reserved : 0;
     }
 
@@ -133,6 +143,17 @@ contract StrategyVault is ERC4626 {
         IERC20(asset()).safeTransferFrom(msg.sender, address(this), assets);
         makerBond += assets;
         emit BondPosted(assets);
+    }
+
+    // ------------------------------------------------------------------ //
+    // Depositor insurance fund (ADR-014/015) — the oracle-failure backstop.
+    // Funded by the protocol (and slashing proceeds, see `slashToInsurance`);
+    // permissionless top-up so anyone can bolster depositor protection.
+    // ------------------------------------------------------------------ //
+    function fundInsurance(uint256 assets) external {
+        IERC20(asset()).safeTransferFrom(msg.sender, address(this), assets);
+        insuranceFund += assets;
+        emit InsuranceFunded(msg.sender, assets);
     }
 
     // ------------------------------------------------------------------ //
@@ -214,10 +235,62 @@ contract StrategyVault is ERC4626 {
         emit Slashed(paid, beneficiary, reason);
     }
 
-    /// @dev SKELETON: junior loss-waterfall (first-loss absorbs strategy losses
-    /// before depositors). Real implementation requires settlement integration.
-    function _applyLoss(uint256 /*lossAssets*/) internal pure {
-        revert("SKELETON: loss-waterfall not implemented");
+    /// @notice Slash the maker (bond first, then first-loss) and route the proceeds
+    /// INTO the insurance fund instead of paying an external beneficiary. The USDC
+    /// stays in the contract — it's reclassified from maker-reserved to the depositor
+    /// backstop — so it grows the fund without a transfer. RiskGate only (ADR-006).
+    function slashToInsurance(uint256 amount, string calldata reason)
+        external
+        onlyRiskGate
+        returns (uint256 moved)
+    {
+        uint256 fromBond = amount > makerBond ? makerBond : amount;
+        makerBond -= fromBond;
+        uint256 remaining = amount - fromBond;
+        uint256 fromFL = remaining > makerFirstLoss ? makerFirstLoss : remaining;
+        makerFirstLoss -= fromFL;
+
+        moved = fromBond + fromFL;
+        insuranceFund += moved;
+        emit SlashedToInsurance(moved, reason);
+    }
+
+    // ------------------------------------------------------------------ //
+    // Realized-loss waterfalls (DESIGN.md §11, ADR-015). RiskGate-only; the loss
+    // amount is the authoritative off-chain measurement (ADR-011). Each reduces the
+    // appropriate reserved bucket so `totalAssets` keeps depositors whole up to the
+    // bucket's size — the residual (buckets exhausted) is what depositors bear.
+    // ------------------------------------------------------------------ //
+
+    /// @notice A maker STRATEGY loss: the junior first-loss absorbs first, then the
+    /// bond, then depositors (ADR-005). This is the maker eating their own mistakes.
+    function applyStrategyLoss(uint256 lossAssets)
+        external
+        onlyRiskGate
+        returns (uint256 residualToDepositors)
+    {
+        uint256 fromFL = lossAssets > makerFirstLoss ? makerFirstLoss : lossAssets;
+        makerFirstLoss -= fromFL;
+        uint256 remaining = lossAssets - fromFL;
+        uint256 fromBond = remaining > makerBond ? makerBond : remaining;
+        makerBond -= fromBond;
+        residualToDepositors = remaining - fromBond;
+        emit StrategyLossApplied(lossAssets, fromFL, fromBond, residualToDepositors);
+    }
+
+    /// @notice An ORACLE-FAILURE loss (not the maker's fault): the insurance fund
+    /// absorbs it, protecting depositors up to the fund's size. The maker's
+    /// alignment capital is deliberately NOT raided for a non-maker-fault event;
+    /// any shortfall beyond the fund is borne by depositors (a fund-sizing problem).
+    function coverOracleLoss(uint256 lossAssets)
+        external
+        onlyRiskGate
+        returns (uint256 residualToDepositors)
+    {
+        uint256 fromIns = lossAssets > insuranceFund ? insuranceFund : lossAssets;
+        insuranceFund -= fromIns;
+        residualToDepositors = lossAssets - fromIns;
+        emit OracleLossCovered(lossAssets, fromIns, residualToDepositors);
     }
 
     // ------------------------------------------------------------------ //

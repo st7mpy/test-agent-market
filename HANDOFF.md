@@ -23,9 +23,10 @@ plan, how to run everything, and what to do next. Deeper detail lives in `docs/`
 
 3. **The Solidity now compiles and tests pass, but is NOT externally audited.**
    `contracts/` builds under Foundry 1.7.1 / solc 0.8.24 / OpenZeppelin v5 and passes
-   **17 tests** (incl. the HWM no-double-charge-across-drawdown vector); Slither findings
-   are triaged in `contracts/AUDIT-PREP.md`. The loss-waterfall is still stubbed and
-   **external Audit #1 (Phase 3) remains the gate before any real capital.**
+   **24 tests** (incl. the HWM no-double-charge-across-drawdown vector and the insurance-fund
+   loss waterfalls); Slither is triaged in `contracts/AUDIT-PREP.md` (3 accepted findings).
+   The loss-waterfall is now implemented (ADR-015); **external Audit #1 (Phase 3) remains
+   the gate before any real capital.**
 
 And one conceptual caveat: the original "35% of agents are profitable" validation is
 **directionally true but laundered** — conditioned on the actual target user it collapses to
@@ -118,9 +119,13 @@ strategies/                   Phase 0–1 code — dependency-free Python, 11 sm
   tests/test_smoke.py         11 smoke · test_signals.py 7 · test_phase0_journal.py 5 · test_oracle_risk.py 8
   README.md, LICENSE (MIT)
 
-contracts/                    Phase 2 — ERC-4626 vault SKELETON (uncompiled, unaudited)
-  src/StrategyVault.sol       profit-only HWM fee, TVL tiers, first-loss+bond, caps, slashing
-  test/StrategyVault.t.sol    Foundry tests (co-invest, capacity, fee, slash)
+contracts/                    Phase 2 — ERC-4626 vault (compiles, 24 Foundry tests, not audited)
+  src/StrategyVault.sol       profit-only HWM fee, TVL tiers, first-loss+bond, caps, slashing,
+                              insurance fund + loss waterfalls (ADR-015)
+  test/StrategyVault.t.sol    happy-path Foundry tests (5)
+  test/StrategyVaultProperties.t.sol   adversarial money-path vectors (12)
+  test/StrategyVaultInsurance.t.sol    insurance fund + loss waterfalls (7)
+  AUDIT-PREP.md               toolchain, coverage matrix, Slither triage (Audit #1 scoping)
   foundry.toml, README.md
 ```
 
@@ -140,9 +145,9 @@ the founder will use to attempt those gates.
 |---|---|---|---|
 | **0 Prove the edge** | Positive net real-money edge, documented | Sample strategies + backtester + paper-trader + edge screener + trade journal/gate-checker | ⏳ tooling ready; **edge NOT proven** (needs real $ + network) |
 | **1 Automate it** | Hosted bot ≥ manual; exact reconciliation; kill-switch | Venue adapter, intent→RiskGate→OMS, reconcile + kill-switch, live loop, **signal layer (F) + Brier/calibration gate** | ⏳ skeleton runs offline; **untested on live data** |
-| **2 Vault** | NAV reconciles incl. resolution; halts on divergence | `StrategyVault.sol` **compiles + 17 tests pass + Slither triaged** | ⏳ **compiles & tested; not externally audited; loss-waterfall stubbed** |
+| **2 Vault** | NAV reconciles incl. resolution; halts on divergence | `StrategyVault.sol` **compiles + 24 tests pass + Slither triaged**; loss-waterfall implemented | ⏳ **compiles & tested; not externally audited** |
 | **3 First outside money** | AUDIT #1 + fee/HWM correct + legal | fee/HWM correctness **proven by test vectors** (`AUDIT-PREP.md`); audit + legal still pending | ◻ code-correctness done; audit/legal not started |
-| **4 Safety systems** | Chaos tests pass; unattended soak | partial: RiskGate, slashing, caps, kill-switch exist as code, **+ oracle-risk scoring/gating (C)**; insurance fund + chaos suite pending | ◻ not hardened |
+| **4 Safety systems** | Chaos tests pass; unattended soak | partial: RiskGate, slashing, caps, kill-switch, **+ oracle-risk scoring/gating + insurance fund & loss-waterfall (C)**; chaos suite pending | ◻ not hardened |
 | **5 Untrusted makers** | Sandbox escape impossible (AUDIT #2) | intent-boundary designed; **sandbox not built** | ◻ not started |
 | **6 Public launch** | Self-serve + geofence + AUDIT #3 + legal | — | ◻ not started |
 | **7 Harden to 100%** | Full feature matrix + no Sev-1 soak | — | ◻ not started |
