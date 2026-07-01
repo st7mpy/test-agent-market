@@ -13,9 +13,23 @@ plan, how to run everything, and what to do next. Deeper detail lives in `docs/`
 
 ## 0. Read this first — three things that will bite you
 
-1. **Pushed.** The branch `claude/quant-marketplace-evaluation-5pd4rp` is on GitHub at
-   `st7mpy/test-agent-market` (the original 403 push-block is resolved). Continue work
-   on that branch; open a PR when a phase gate is ready for review.
+1. **NOT pushed — work travels by bundle.** This session (2026-07-01) developed on
+   `claude/prediction-market-strategies-dgsya6` but **could not push**: the git proxy
+   returns 403 on every push and `ls-remote` shows the remote only exposes
+   `claude/quant-marketplace-evaluation-5pd4rp` (the designated branch no longer exists
+   remotely). The full history was handed off as a **git bundle + patch series +
+   source snapshot** instead. To restore:
+
+   ```bash
+   git clone test-agent-market-full-<date>.bundle test-agent-market
+   cd test-agent-market && git checkout claude/prediction-market-strategies-dgsya6
+   # or apply just this session onto the old branch head (a4e473f):
+   git am patches/*.patch
+   ```
+
+   Once GitHub write access works again, push the branch and open a PR as originally
+   planned. Session adds: 4 new strategies + tests, `docs/VENUES.md`, the config-driven
+   runner + `deploy/` (details in §3 and the four commit messages after `a4e473f`).
 
 2. **This session's network blocks `polymarket.com`** (egress policy → 403, confirmed). So
    every `--live` path and real-data backtest is **written but untested here**; everything
