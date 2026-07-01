@@ -1,0 +1,21 @@
+# One service per strategy session. Scale by adding services, one market each —
+# a runner is deliberately single-market so blast radius and capacity stay bounded.
+#
+#   docker compose -f deploy/compose.yaml up --build
+#
+# restart policy is "no": exit code 2 means the kill-switch halted on a
+# reconciliation breach (ADR-011) and a human must look before anything restarts.
+services:
+  theta-replay:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    volumes:
+      - ./config.example.json:/config/config.json:ro
+      - reports:/app/reports
+    environment:
+      POLYMARKET_ADDRESS: ${POLYMARKET_ADDRESS:-}
+    restart: "no"
+
+volumes:
+  reports:

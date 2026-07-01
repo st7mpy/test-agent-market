@@ -1,0 +1,30 @@
+{
+  "mode": "replay",
+  "venue": "polymarket",
+  "market": { "query": "election" },
+  "strategy": {
+    "name": "theta",
+    "params": {
+      "hurdle_apr": 0.30,
+      "max_ttr": 30,
+      "risk_per_market": 0.02,
+      "max_oracle_risk": 0.25
+    }
+  },
+  "bankroll": 100000,
+  "risk": {
+    "max_position_shares": 5000,
+    "max_order_notional": 10000,
+    "max_oracle_risk": 0.5
+  },
+  "oracle": {
+    "flags": {},
+    "overrides": { "replay": 0.10 }
+  },
+  "loop": {
+    "steps": 400,
+    "reconcile_every": 25,
+    "interval_s": 2.0
+  },
+  "report_path": "session_report.json"
+}

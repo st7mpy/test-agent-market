@@ -15,5 +15,9 @@ contracts/broadcast/
 # Phase 0 runtime journal (real trade log — not source)
 strategies/phase0_journal.json
 
+# runner session output
+session_report.json
+strategies/session_report.json
+
 # OS / editor
 .DS_Store
