@@ -54,12 +54,15 @@ class PolymarketAdapter(VenueAdapter):
     """
 
     def __init__(self, query: str, *, poll_interval_s: float = 2.0,
-                 category: str = "politics", address: Optional[str] = None) -> None:
+                 category: str = "politics", address: Optional[str] = None,
+                 max_pages: int = 6) -> None:
         from . import data  # local import so offline use never needs network code paths
         self._data = data
-        info = data.discover_token(query, closed=False)
+        info = data.discover_token(query, closed=False, max_pages=max_pages)
         if not info:
-            raise RuntimeError(f"no open market matched {query!r}")
+            raise RuntimeError(
+                f"no open market matched {query!r} in the top {max_pages * 50} by volume "
+                f"— try a more specific query or a higher max_pages")
         self.market_id = info["question"]
         self.category = category
         self._yes = info["yes_token_id"]

@@ -5,6 +5,7 @@
     python backtest.py --strategy mm           # market maker on the bundled fixture
     python backtest.py --strategy kelly        # Kelly mean-reversion on the fixture
     python backtest.py --strategy mm --live --query "election"   # real Polymarket data
+    python backtest.py --strategy mm --file series.json          # replay a captured series
 
 It replays a single market's historical YES mid-price, synthesises an order book
 around each mid (configurable spread/depth), runs a strategy, simulates fills,
@@ -173,21 +174,39 @@ def main() -> None:
     ap.add_argument("--strategy", choices=["mm", "kelly"], default="mm")
     ap.add_argument("--live", action="store_true", help="fetch real Polymarket data")
     ap.add_argument("--query", default="election", help="market search (with --live)")
+    ap.add_argument("--pages", type=int, default=6, help="search depth for --live (pages of 50 by volume)")
+    ap.add_argument("--file", default=None, help="replay a captured history JSON (see capture_history.py)")
+    ap.add_argument("--outcome", choices=["YES", "NO"], default=None, help="assumed resolution (override / for --file)")
     ap.add_argument("--bankroll", type=float, default=100_000.0)
     args = ap.parse_args()
 
     outcome = "YES"
     if args.live:
-        info = discover_token(args.query)
+        info = discover_token(args.query, max_pages=args.pages)
         if not info:
-            raise SystemExit(f"no resolved market matched {args.query!r}")
+            raise SystemExit(
+                f"no resolved market matched {args.query!r} in the top {args.pages * 50} by "
+                f"volume — try a more specific --query or a higher --pages.")
         print(f"market: {info['question']!r}  outcome={info['outcome']}")
         history = fetch_polymarket_history(info["yes_token_id"])
         outcome = info["outcome"] or "YES"
+        if not history:
+            raise SystemExit(
+                f"'{info['question']}' returned 0 price points from the free prices-history "
+                f"endpoint (common for older / low-liquidity markets). Try another --query, or "
+                f"capture a live series instead:\n"
+                f"    python capture_history.py --query {args.query!r} --out series.json\n"
+                f"    python backtest.py --strategy {args.strategy} --file series.json --outcome YES")
+    elif args.file:
+        history = load_fixture(args.file)
+        print(f"replay: {args.file} ({len(history)} points)")
     else:
         history = load_fixture(DEFAULT_FIXTURE)
         print(f"fixture: {DEFAULT_FIXTURE} ({len(history)} points; resolves YES)")
-        print("  [offline mode — egress policy blocked Polymarket; use --live with network]")
+        print("  [offline fixture — for real data use --live (headers now clear Cloudflare) or --file]")
+
+    if args.outcome:
+        outcome = args.outcome
 
     if args.strategy == "mm":
         strat = MarketMakerStrategy(MMParams(market_id="m", quote_size=200,

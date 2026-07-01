@@ -89,32 +89,41 @@ def _get_json(url: str, timeout: float = 30.0):
 
 
 # --------------------------------------------------------------------------- #
-def discover_token(query: str, *, closed: bool = True, limit: int = 50) -> Optional[dict]:
-    """Find a resolved market whose question matches `query`; return its YES token.
+def discover_token(query: str, *, closed: bool = True, limit: int = 50,
+                   max_pages: int = 6) -> Optional[dict]:
+    """Find a market whose question matches `query`; return its YES/NO tokens.
 
-    Returns {"question", "yes_token_id", "no_token_id", "outcome"} or None.
+    Scans up to ``max_pages`` pages of ``limit`` markets ordered by volume (so a
+    lower-volume market is still reachable — a single page of 50 misses most of
+    the book). First substring match wins. Returns
+    {"question", "yes_token_id", "no_token_id", "outcome"} or None.
     """
-    params = {"closed": str(closed).lower(), "limit": str(limit),
-              "order": "volumeNum", "ascending": "false"}
-    markets = _get_json(f"{GAMMA}?{urllib.parse.urlencode(params)}")
     q = query.lower()
-    for m in markets:
-        if q not in (m.get("question", "").lower()):
-            continue
-        token_ids = m.get("clobTokenIds")
-        if isinstance(token_ids, str):
-            token_ids = json.loads(token_ids)
-        if not token_ids or len(token_ids) < 2:
-            continue
-        # winning outcome, if resolved
-        outcome = None
-        prices = m.get("outcomePrices")
-        if isinstance(prices, str):
-            prices = json.loads(prices)
-        if prices and len(prices) >= 2:
-            outcome = "YES" if float(prices[0]) > float(prices[1]) else "NO"
-        return {"question": m.get("question"), "yes_token_id": token_ids[0],
-                "no_token_id": token_ids[1], "outcome": outcome}
+    for page in range(max(1, max_pages)):
+        params = {"closed": str(closed).lower(), "limit": str(limit),
+                  "offset": str(page * limit), "order": "volumeNum", "ascending": "false"}
+        markets = _get_json(f"{GAMMA}?{urllib.parse.urlencode(params)}")
+        if not markets:
+            break
+        for m in markets:
+            if q not in (m.get("question", "").lower()):
+                continue
+            token_ids = m.get("clobTokenIds")
+            if isinstance(token_ids, str):
+                token_ids = json.loads(token_ids)
+            if not token_ids or len(token_ids) < 2:
+                continue
+            # winning outcome, if resolved
+            outcome = None
+            prices = m.get("outcomePrices")
+            if isinstance(prices, str):
+                prices = json.loads(prices)
+            if prices and len(prices) >= 2:
+                outcome = "YES" if float(prices[0]) > float(prices[1]) else "NO"
+            return {"question": m.get("question"), "yes_token_id": token_ids[0],
+                    "no_token_id": token_ids[1], "outcome": outcome}
+        if len(markets) < limit:
+            break   # last page
     return None
 
 

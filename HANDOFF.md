@@ -114,12 +114,15 @@ strategies/                   Phase 0–1 code — dependency-free Python, 11 sm
     attestation.py            attested track records / TEE flow stub (A-lite, ADR-018)
   data/sample_history.json    offline price fixture (Polymarket schema, resolves YES)
   demo.py                     prints intents each strategy emits
-  backtest.py                 price-replay backtester (--live or fixture)
+  backtest.py                 price-replay backtester (--live / --file / fixture; --pages, --outcome)
   papertrade.py               paper-trade behind the venue adapter + risk gate + OMS
   live.py                     live/poll loop + reconciliation + kill-switch
   signal_demo.py              scores a research agent vs the market (Brier skill + calibration)
   multivenue_demo.py          cross-venue arb across two (offline) venues, venue-aware fees
   phase0_journal.py           Phase-0 trade journal incl. venue-yield (rebate/reward) accounting
+  check_polymarket.py         live-API reachability probe (headers fix; see DEPLOY_DATA.md)
+  capture_history.py          poll a live market's mid into a backtestable series (--file)
+  DEPLOY_DATA.md              run live data from a supported region if geo-blocked
   tests/test_smoke.py         11 smoke · signals 7 · phase0_journal 5 · oracle_risk 8 · multivenue 7 · attestation 5
   README.md, LICENSE (MIT)
 
@@ -182,10 +185,14 @@ python papertrade.py --strategy mm         # paper-trade via adapter + risk gate
 python live.py --strategy mm               # live loop, reconciliation clean
 python live.py --strategy mm --inject-divergence-at 100   # demo: kill-switch halt
 
-# --- Live data (needs a networked env; blocked in this session) ---
-python backtest.py  --strategy mm  --live  --query "election"
+# --- Live Polymarket data (works from a normal network; headers clear Cloudflare) ---
+python check_polymarket.py                                   # reachability probe
+python backtest.py  --strategy mm  --live  --query "election"   # --pages N to search deeper
 python papertrade.py --strategy arb --source live --query "election"
 python live.py       --strategy mm --source live --query "election"
+# free prices-history is sparse for some markets — capture a live series, then replay it:
+python capture_history.py --query "bitcoin hit \$1m" --out btc1m.json --interval 30 --steps 240
+python backtest.py --strategy mm --file btc1m.json --outcome YES
 
 # --- Contracts (needs Foundry + network) ---
 cd contracts
