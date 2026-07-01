@@ -6,21 +6,25 @@ Polymarket exposes public, unauthenticated endpoints:
     ?market=<clob_token_id>&interval=<max|1d|...>&fidelity=<minutes>
 
 `fetch_polymarket_history` and `discover_token` use only the standard library
-(urllib), honour HTTPS_PROXY, and trust the CA bundle in SSL_CERT_FILE /
-REQUESTS_CA_BUNDLE if set — so they work in a normal networked environment.
+(urllib), send **browser-like headers** (UA + Origin/Referer, override via
+``$PREDMKT_USER_AGENT``), honour ``HTTPS_PROXY``, and trust the CA bundle in
+``SSL_CERT_FILE`` / ``REQUESTS_CA_BUNDLE`` if set — so they work in a normal
+networked environment. Run ``python check_polymarket.py`` to test reachability.
 
-NOTE: in some sandboxed sessions outbound access to polymarket.com is blocked by
-egress policy; in that case use the bundled fixture (``load_fixture``), which is
-stored in the exact CLOB ``prices-history`` shape so the calling code is
-identical. The fixture is synthetic-but-schema-accurate (an election-style
-market that resolves YES) because real data could not be fetched at authoring
-time; replace it with a real series via ``--live`` when network is available.
+NOTE: access can fail two ways. (1) A **Cloudflare bare-client 403** — fixed by the
+browser-like headers above. (2) A **geographic/IP block** (a geofenced region such
+as India, or a flagged datacenter IP) — headers won't help; run from a supported
+region (US/EU VM) per ``strategies/DEPLOY_DATA.md``. In either case (or offline) use
+the bundled fixture (``load_fixture``), stored in the exact CLOB ``prices-history``
+shape so the calling code is identical — replace it with a real series via ``--live``
+once reachable.
 """
 from __future__ import annotations
 
 import json
 import os
 import ssl
+import urllib.error
 import urllib.parse
 import urllib.request
 from typing import List, Optional, Tuple
@@ -47,10 +51,41 @@ def _opener() -> urllib.request.OpenerDirector:
     return urllib.request.build_opener(*handlers)
 
 
+# A browser-like UA + Origin/Referer clears Cloudflare's bare-client 403 in most
+# cases. A *geographic* block (e.g. India / flagged datacenter IPs) is different —
+# it needs a request from a supported region (see strategies/DEPLOY_DATA.md).
+# Override the UA with $PREDMKT_USER_AGENT if a venue rotates its bot rules.
+_DEFAULT_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+)
+
+
+def _headers() -> dict:
+    return {
+        "User-Agent": os.environ.get("PREDMKT_USER_AGENT", _DEFAULT_UA),
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Origin": "https://polymarket.com",
+        "Referer": "https://polymarket.com/",
+    }
+
+
 def _get_json(url: str, timeout: float = 30.0):
-    req = urllib.request.Request(url, headers={"User-Agent": "predmkt-backtest/0.1"})
-    with _opener().open(req, timeout=timeout) as r:
-        return json.loads(r.read().decode("utf-8"))
+    req = urllib.request.Request(url, headers=_headers())
+    try:
+        with _opener().open(req, timeout=timeout) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        if e.code in (403, 451):
+            endpoint = url.split("?")[0]
+            raise RuntimeError(
+                f"HTTP {e.code} from {endpoint} — almost always a Cloudflare/geo IP block "
+                f"(a geofenced region like India, or a flagged datacenter IP), not a code bug. "
+                f"Fix: run from a supported-region VM (US/EU), or set $PREDMKT_USER_AGENT / "
+                f"$HTTPS_PROXY. See strategies/DEPLOY_DATA.md."
+            ) from e
+        raise
 
 
 # --------------------------------------------------------------------------- #
