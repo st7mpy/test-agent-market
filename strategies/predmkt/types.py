@@ -23,6 +23,7 @@ TICK = 0.001   # Polymarket minimum price increment (1/10 cent)
 class Venue(str, Enum):
     POLYMARKET = "polymarket"
     KALSHI = "kalshi"
+    FORECASTEX = "forecastex"
 
 
 class Token(str, Enum):
@@ -122,6 +123,28 @@ class CrossVenuePair:
     market_a: BinaryMarket
     market_b: BinaryMarket
     resolution_rules_match: bool = True  # if False, this is basis risk, NOT arbitrage
+
+
+class RelationKind(str, Enum):
+    """Logical constraint between two markets' outcomes (A = market_a resolves YES)."""
+    IMPLIES = "implies"        # A => B, so P(A) <= P(B) must hold
+    EXCLUSIVE = "exclusive"    # A and B cannot both happen: P(A) + P(B) <= 1
+    EXHAUSTIVE = "exhaustive"  # at least one of A, B must happen: P(A) + P(B) >= 1
+
+
+@dataclass
+class MarketRelation:
+    """An asserted logical constraint between two markets, for relation arbitrage.
+
+    `verified` mirrors CrossVenuePair.resolution_rules_match: resolution wording can
+    break a "logical" implication (e.g. a candidate winning the presidency without the
+    nomination), so it defaults to False and the strategy treats unverified relations
+    as basis risk, not arbitrage. Only a human/monitor may set it True.
+    """
+    kind: RelationKind
+    market_a_id: str
+    market_b_id: str
+    verified: bool = False
 
 
 # --------------------------------------------------------------------------- #

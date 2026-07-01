@@ -7,6 +7,11 @@ resolution is free; gas is near-zero (account abstraction / meta-tx).
 
 Kalshi: fee = ceil(0.07 * contracts * P * (1 - P)) rounded up to the cent.
 
+ForecastEx (IBKR ForecastTrader): flat $0.01 per contract, embedded in matching —
+YES and NO bids always total $1.01. Posting passive liquidity is free, and 100% of
+interest on deposited collateral is passed back as an Incentive Coupon (~3-4% APY
+as of mid-2026), which feeds the venue-yield accounting (differentiator B).
+
 The exact Polymarket base rate is not publicly fixed per-category here; we model
 the *structure* (min(p,1-p) scaling + per-100 cap) which is what matters for a
 strategy's edge thresholds. Treat absolute numbers as placeholders.
@@ -58,9 +63,22 @@ def kalshi_fee_per_share(price: float) -> float:
     return 0.07 * p * (1.0 - p)
 
 
+FORECASTEX_FEE_PER_CONTRACT = 0.01
+
+
+def forecastex_fee_per_share(price: float = 0.0) -> float:
+    """Flat $0.01/contract regardless of price. Unlike Polymarket (cheap at the
+    extremes) and Kalshi (peaks at p=0.50), this is price-flat — so ForecastEx is
+    relatively expensive for near-certain favorites (theta trades) and relatively
+    cheap at mid-range prices."""
+    return FORECASTEX_FEE_PER_CONTRACT
+
+
 def taker_fee_per_share(venue: Venue, price: float, category: str) -> float:
     """Venue-aware per-share taker fee — dispatches to the correct venue model so a
     cross-venue arb leg is charged its own venue's fee, not the other's (ADR-016)."""
     if venue == Venue.KALSHI:
         return kalshi_fee_per_share(price)
+    if venue == Venue.FORECASTEX:
+        return forecastex_fee_per_share(price)
     return polymarket_taker_fee_per_share(price, category)
