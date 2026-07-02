@@ -3,13 +3,17 @@
 Clean-room, runnable **sample trading strategies** for the prediction-market vault
 platform — the first concrete deliverable of **Phase 0** in [`../docs/PLAN.md`](../docs/PLAN.md).
 
-Three strategy families, mapping to what the platform advertises (Arb / Kelly / mispricing):
+Seven strategy families, mapping to what the platform advertises (Arb / Kelly / mispricing):
 
 | Strategy | File | Idea |
 |---|---|---|
 | **Arbitrage** | `predmkt/arbitrage.py` | Near-risk-free: intra-market YES/NO, combinatorial (NegRisk) dutch-book, and cross-venue |
 | **Market making** | `predmkt/market_maker.py` | Avellaneda–Stoikov inventory model adapted to bounded [0,1] binary markets |
 | **Forecast-edge + Kelly** | `predmkt/kelly_edge.py` | Fair-value estimate → edge vs price → fractional-Kelly sizing; + mean-reversion |
+| **Relation arbitrage** | `predmkt/relation_arb.py` | Logical-consistency violations across related markets (A⇒B forces P(A)≤P(B); exclusivity; exhaustivity) — min-payoff-$1 baskets bought under $1 |
+| **Longshot-bias harvester** | `predmkt/longshot_bias.py` | Sell systematically overpriced tails via the favorite side, with a debias map, momentum + oracle-risk guards, hard risk budgets |
+| **Theta convergence** | `predmkt/theta_convergence.py` | Buy near-certain favorites close to resolution when the annualized carry clears a hurdle; strictly oracle-risk-gated |
+| **Smart-money flow** | `predmkt/flow_signal.py` | Score public on-chain wallets on resolved track records; tilt fair value toward proven wallets' live positioning (a `SignalProvider` for Kelly, gated by ADR-013) |
 
 > ⚠️ **These are educational reference implementations, not turnkey money-printers.**
 > Parameters are illustrative defaults; the platform's plan (PLAN.md, Phase 0) requires a
@@ -21,10 +25,13 @@ Three strategy families, mapping to what the platform advertises (Arb / Kelly / 
 ```bash
 cd strategies
 python demo.py            # prints the intents each strategy emits on synthetic scenarios
-python tests/test_smoke.py   # 5 dependency-free smoke tests
+python tests/test_smoke.py   # dependency-free smoke tests (see tests/ for the full suite)
+python run.py --config ../deploy/config.example.json   # config-driven session (the deployable unit)
 ```
 
-Pure standard library — no dependencies, no network.
+Pure standard library — no dependencies, no network. Deployment (config schema, Docker,
+exit-code contract) is documented in [`../deploy/README.md`](../deploy/README.md); venue
+selection in [`../docs/VENUES.md`](../docs/VENUES.md).
 
 ## Backtest on real Polymarket data
 
@@ -107,21 +114,26 @@ how an untrusted maker strategy will run inside the sandbox.
 
 ```
 predmkt/
-  types.py         # domain types + the Intent vocabulary
-  fees.py          # Polymarket (min(p,1-p) + per-100 cap) and Kalshi fee models
+  types.py         # domain types + the Intent vocabulary (+ MarketRelation)
+  fees.py          # Polymarket, Kalshi, and ForecastEx fee models (venue-dispatched)
   base.py          # Strategy base class + per-tick Context
-  arbitrage.py     # strategy 1
-  market_maker.py  # strategy 2
-  kelly_edge.py    # strategy 3
+  arbitrage.py     # strategy 1: intra-market / NegRisk / cross-venue arb
+  market_maker.py  # strategy 2: Avellaneda–Stoikov
+  kelly_edge.py    # strategy 3: forecast edge + fractional Kelly
+  relation_arb.py  # strategy 4: cross-market logical-consistency arb
+  longshot_bias.py # strategy 5: favorite-longshot bias harvester
+  theta_convergence.py  # strategy 6: near-resolution carry
+  flow_signal.py   # strategy 7: smart-money flow SignalProvider + wallet scoring
   sim.py           # tiny offline simulator + synthetic order-book builders
   data.py          # live Polymarket public API (Gamma + CLOB book/history) + fixture loader
   venue.py         # VenueAdapter: PolymarketAdapter (live) + ReplayAdapter (offline)
   execution.py     # RiskGate + PaperBroker + PaperOMS (the trusted execution seams)
 data/sample_history.json  # offline price-history fixture (Polymarket schema)
-demo.py            # runnable demonstration
+demo.py            # runnable demonstration (all seven strategies)
 backtest.py        # price-replay backtester (real data via --live, else fixture)
 papertrade.py      # paper-trade behind the real venue adapter + risk gate + OMS
-tests/test_smoke.py
+run.py             # config-driven runner — the deployable unit (see ../deploy/)
+tests/
 ```
 
 ## Strategy notes
@@ -144,6 +156,32 @@ an external reference anchor (built-in) or an own-price mean-reversion z-score w
 regime guard (built-in). Layered risk caps: min-edge-after-fees, per-market fraction, depth,
 per-category and gross exposure, and a daily stop.
 
+**Relation arbitrage.** For an asserted logical constraint between two markets (A implies B;
+mutually exclusive; exhaustive), a pricing violation lets you buy a two-leg basket whose
+*minimum* payoff is $1 for less than $1 net of fees. The constraint is human-verified
+(`MarketRelation.verified`, default False) because resolution wording — not logic — decides
+whether it truly holds; unverified relations are refused as basis risk.
+
+**Longshot-bias harvester.** Longshots are systematically overpriced (the best-documented
+prediction/betting-market anomaly), so the strategy buys the *favorite* side when the
+debiased fair value (`π(p) = p^β/(p^β + (1−p)^β)`, β>1) still clears fees plus a margin.
+Negative-skew by construction, so the controls carry it: tail-zone-only entries, a momentum
+veto (never fade a strengthening tail), an oracle-risk gate, hard per-market and gross risk
+budgets, and per-tick entry limits. Calibrate β per venue/category from resolved markets.
+
+**Theta convergence.** Near-certain favorites decay to $1 like option theta; buying the last
+cents only pays if the *annualized* net return clears a hurdle and the favorite isn't "cheap
+for a reason". Hence: carry-zone timing (`max_ttr`), a repricing guard (a slipping favorite is
+news, not decay), a **strict** oracle-risk cap (a UMA-style mis-resolution is exactly the tail
+being sold), and full-loss-bounded sizing.
+
+**Smart-money flow.** Polymarket fills are public per-wallet on-chain. `score_wallets` turns
+resolved history into shrinkage-adjusted per-wallet skill (n/(n+k) keeps lucky small samples
+near zero); `SmartMoneyProvider` tilts the microprice toward proven wallets' current
+positioning, bounded by `max_tilt` and scaled by how much proven money is actually behind it.
+It's a `SignalProvider`: it feeds Kelly through `as_fair_value_fn` and must pass the
+Brier-skill + calibration gate (ADR-013) before it may size capital.
+
 ## Provenance & licensing
 
 **Our code is original and MIT-licensed** (see `LICENSE`). The strategies were written
@@ -159,7 +197,8 @@ consulted (verify each repo's license before reusing any of *their* code):
 | Avellaneda & Stoikov (2008); arXiv:2510.15205 | papers | MM math + bounded-market adaptation |
 | guberm/polymarket-bot | MIT | Layered-cap intuition (Kelly) |
 | Kelly (1956); arXiv:1603.06183 (Risk-Constrained Kelly) | papers | Sizing math |
-| arXiv:2508.03474 (Arbitrage in Prediction Markets) | paper | Arb conditions |
+| arXiv:2508.03474 (Arbitrage in Prediction Markets) | paper | Arb conditions + logical-dependency mispricings (relation arb) |
+| Thaler & Ziemba (1988); Snowberg & Wolfers (2010) | papers | Favorite-longshot bias evidence + debias intuition |
 
 > Fee numbers and venue mechanics are modelled approximately for illustration — confirm exact
 > schedules (Polymarket fees, Kalshi `0.07·C·P·(1−P)`) against current venue docs before live use.

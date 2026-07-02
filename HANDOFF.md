@@ -1,9 +1,9 @@
 # Project Handoff
 
 **Project:** Prediction-Market Quant Vault Marketplace
-**Branch:** `claude/quant-marketplace-evaluation-5pd4rp`
+**Branch:** `claude/quant-marketplace-evaluation-5pd4rp` (merged in `claude/prediction-market-strategies-dgsya6`)
 **Status:** Design complete · pre-Phase-0 scaffolding built & tested offline · **no phase gate passed yet**
-**Last updated:** 2026-06-27
+**Last updated:** 2026-07-02
 
 This is the single read-me-first document. It says what the project is, every decision
 that's been locked, what code exists and what's verified, where we are against the build
@@ -13,9 +13,18 @@ plan, how to run everything, and what to do next. Deeper detail lives in `docs/`
 
 ## 0. Read this first — three things that will bite you
 
-1. **Pushed.** The branch `claude/quant-marketplace-evaluation-5pd4rp` is on GitHub at
-   `st7mpy/test-agent-market` (the original 403 push-block is resolved). Continue work
-   on that branch; open a PR when a phase gate is ready for review.
+1. **Pushed — both lines are on GitHub.** A 2026-07-01 session developed four commits
+   (four new strategies + tests, `docs/VENUES.md`, the config-driven runner + `deploy/`)
+   on `claude/prediction-market-strategies-dgsya6`, based on this branch at `a4e473f`.
+   That session had no GitHub access, so it handed the work off as a git bundle instead
+   of a push (its original note here said "NOT pushed — work travels by bundle"; that is
+   now stale — superseded by this paragraph). Meanwhile this branch
+   (`claude/quant-marketplace-evaluation-5pd4rp`) advanced two commits past `a4e473f`
+   (browser-like headers that make live Polymarket data work, plus paginated discovery +
+   `capture_history.py`). Both lines are now reconciled: the bundle was fetched, pushed
+   to origin under its own branch name (`claude/prediction-market-strategies-dgsya6`),
+   merged into this branch, and this branch was pushed too. `git log --oneline -8` shows
+   both lines of commits; open a PR from either branch when a phase gate is ready for review.
 
 2. **This session's network blocks `polymarket.com`** (egress policy → 403, confirmed). So
    every `--live` path and real-data backtest is **written but untested here**; everything
@@ -55,6 +64,7 @@ competitive analysis, TAM, and the pivot are in the docs below.
 | `docs/ARCHITECTURE.md` | The **why**: 18 ADRs (incl. the differentiators), trust boundaries, failure modes |
 | `docs/PLAN.md` | Phase-by-phase plan to 100% + the 2026 moat re-eval / differentiator map |
 | `docs/DIFFERENTIATION.md` · `docs/COMPETITION.md` | 2026 competitive scan + the moat (B/F/D/C/A-lite/E) |
+| `docs/VENUES.md` | Venue deployment matrix: tiers, fees, prerequisites, strategy×venue fit |
 | `docs/TEE-DESIGN.md` | A-lite design: TEE-private positions + attested track records (ADR-018) |
 | `docs/Concept-Brief.pdf` | 7-page styled brief (idea, users, TAM, architecture, user flows) |
 
@@ -96,14 +106,18 @@ docs/
   PLAN.md                     phase-by-phase build plan + checkpoints + invariants
   Concept-Brief.pdf           7-page styled brief  (source: concept-brief.src.html)
 
-strategies/                   Phase 0–1 code — dependency-free Python, 11 smoke tests
+strategies/                   Phase 0–1 code — dependency-free Python
   predmkt/
-    types.py                  domain types + the Intent vocabulary (the strategy boundary)
+    types.py                  domain types + the Intent vocabulary (+ MarketRelation)
     base.py                   Strategy base class + per-tick Context
-    fees.py                   Polymarket (min(p,1-p)+cap) and Kalshi fee models
+    fees.py                   Polymarket, Kalshi, ForecastEx fee models (venue-dispatched)
     arbitrage.py              strategy 1: intra-market / NegRisk / cross-venue
     market_maker.py           strategy 2: Avellaneda-Stoikov adapted to [0,1] markets
     kelly_edge.py             strategy 3: fractional Kelly + guarded mean-reversion
+    relation_arb.py           strategy 4: cross-market logical-consistency arb (implies/exclusive/exhaustive)
+    longshot_bias.py          strategy 5: favorite-longshot bias harvester (debias map + guards)
+    theta_convergence.py      strategy 6: near-resolution carry, strictly oracle-gated
+    flow_signal.py            strategy 7: smart-money flow SignalProvider + wallet scoring
     sim.py                    offline order-book builders + synthetic series
     data.py                   live Polymarket API (Gamma + CLOB book/history) + fixture loader
     venue.py                  VenueAdapter: Polymarket + Kalshi (live) + ReplayAdapter + CrossVenueFeed (D, ADR-016)
@@ -113,18 +127,26 @@ strategies/                   Phase 0–1 code — dependency-free Python, 11 sm
     oracle_risk.py            oracle/resolution-risk scoring for the RiskGate (C, ADR-014)
     attestation.py            attested track records / TEE flow stub (A-lite, ADR-018)
   data/sample_history.json    offline price fixture (Polymarket schema, resolves YES)
-  demo.py                     prints intents each strategy emits
+  demo.py                     prints intents each of the seven strategies emits
   backtest.py                 price-replay backtester (--live / --file / fixture; --pages, --outcome)
   papertrade.py               paper-trade behind the venue adapter + risk gate + OMS
   live.py                     live/poll loop + reconciliation + kill-switch
+  run.py                      config-driven runner — the deployable unit (see deploy/)
   signal_demo.py              scores a research agent vs the market (Brier skill + calibration)
   multivenue_demo.py          cross-venue arb across two (offline) venues, venue-aware fees
   phase0_journal.py           Phase-0 trade journal incl. venue-yield (rebate/reward) accounting
   check_polymarket.py         live-API reachability probe (headers fix; see DEPLOY_DATA.md)
   capture_history.py          poll a live market's mid into a backtestable series (--file)
   DEPLOY_DATA.md              run live data from a supported region if geo-blocked
-  tests/test_smoke.py         11 smoke · signals 7 · phase0_journal 5 · oracle_risk 8 · multivenue 7 · attestation 5
+  tests/                      smoke 11 · signals 7 · phase0 9 · journal 5 · oracle 8 · multivenue 7
+                              · attestation 5 · relation_arb 8 · longshot 9 · theta 10 · flow 10 · runner 9
   README.md, LICENSE (MIT)
+
+deploy/                       deployment artifacts (both framings: platform-hosted + self-host)
+  Dockerfile                  runner image (python:3.12-slim, non-root, stdlib-only)
+  compose.yaml                one service per strategy session; restart:"no" (halt = human)
+  config.example.json         theta-on-replay session config
+  README.md                   config schema, exit-code contract, secrets policy, framings
 
 contracts/                    Phase 2/6 — vaults (compile, 31 Foundry tests, not audited)
   src/StrategyVault.sol       profit-only HWM fee, TVL tiers, first-loss+bond, caps, slashing,
@@ -175,8 +197,13 @@ python tests/test_phase0_journal.py        # 5 venue-yield journal tests (B)
 python tests/test_oracle_risk.py           # 8 oracle-risk scoring/gating tests (C)
 python tests/test_multivenue.py            # 7 multi-venue + cross-venue arb tests (D)
 python tests/test_attestation.py           # 5 attested-track-record / TEE-flow tests (A-lite)
+python tests/test_relation_arb.py          # 8 relation-arb tests
+python tests/test_longshot_bias.py         # 9 longshot-bias tests
+python tests/test_theta_convergence.py     # 10 theta-convergence tests
+python tests/test_flow_signal.py           # 10 smart-money flow tests
+python tests/test_runner.py                # 9 config-runner tests
 python multivenue_demo.py                  # cross-venue arb across two venues (D)
-python demo.py                             # intents each strategy emits
+python demo.py                             # intents each of the seven strategies emits
 python signal_demo.py                      # signal skill + calibration vs the market (F)
 python phase0_journal.py status            # Phase-0 net PnL incl. venue-yield + gate (B)
 python backtest.py --strategy mm           # price-replay backtest (fixture)
@@ -184,6 +211,11 @@ python backtest.py --strategy kelly
 python papertrade.py --strategy mm         # paper-trade via adapter + risk gate + OMS
 python live.py --strategy mm               # live loop, reconciliation clean
 python live.py --strategy mm --inject-divergence-at 100   # demo: kill-switch halt
+python run.py --config ../deploy/config.example.json      # config-driven session (deployable unit)
+
+# --- Docker (from the repo root; see deploy/README.md) ---
+docker build -f deploy/Dockerfile -t predmkt-runner .
+docker run --rm predmkt-runner
 
 # --- Live Polymarket data (works from a normal network; headers clear Cloudflare) ---
 python check_polymarket.py                                   # reachability probe

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Runnable demo of the three sample strategies.
+"""Runnable demo of the sample strategies.
 
     cd strategies && python demo.py
 
@@ -15,14 +15,22 @@ from predmkt import (
     CrossVenuePair,
     Event,
     Fill,
+    FlowTrade,
     KellyEdgeStrategy,
     KellyParams,
+    LongshotBiasStrategy,
     MarketMakerStrategy,
+    MarketRelation,
     MMParams,
     Portfolio,
+    RelationArbStrategy,
+    RelationKind,
     Side,
+    SmartMoneyProvider,
+    ThetaConvergenceStrategy,
     Token,
     Venue,
+    score_wallets,
 )
 from predmkt.sim import binary_market, book, random_walk_market
 
@@ -118,8 +126,58 @@ def demo_kelly() -> None:
     show(strat.on_tick(ctx))
 
 
+def demo_relation_arb() -> None:
+    hr("4 · RELATION ARBITRAGE (logical consistency)")
+    # "X wins presidency" implies "X wins nomination", yet presidency trades ABOVE
+    # nomination — buy NO(presidency) + YES(nomination): min payoff $1 for < $1.
+    pres = binary_market("x-presidency", 0.60, category="politics")
+    nom = binary_market("x-nomination", 0.50, category="politics")
+    rel = MarketRelation(RelationKind.IMPLIES, "x-presidency", "x-nomination",
+                         verified=True)
+    ctx = Context(markets={m.market_id: m for m in (pres, nom)}, relations=[rel])
+    show(RelationArbStrategy().on_tick(ctx))
+
+
+def demo_longshot_bias() -> None:
+    hr("5 · FAVORITE-LONGSHOT BIAS HARVESTER")
+    # a 5c longshot is empirically worth ~2c -> its 95c favorite is underpriced
+    tail = binary_market("mkt-longshot", 0.05, category="sports")
+    mid = binary_market("mkt-midrange", 0.50, category="sports")   # no bias here
+    strat = LongshotBiasStrategy(bankroll=100_000.0)
+    show(strat.on_tick(Context(markets={m.market_id: m for m in (tail, mid)})))
+
+
+def demo_theta() -> None:
+    hr("6 · RESOLUTION-CONVERGENCE (theta carry)")
+    # a 95.5c favorite 10 periods from resolution annualizes far above the hurdle
+    near = binary_market("mkt-near", 0.955, category="sports", time_to_resolution=10.0)
+    far = binary_market("mkt-far", 0.955, category="sports", time_to_resolution=200.0)
+    strat = ThetaConvergenceStrategy(bankroll=100_000.0)
+    show(strat.on_tick(Context(markets={m.market_id: m for m in (near, far)})))
+
+
+def demo_smart_money() -> None:
+    hr("7 · SMART-MONEY FLOW SIGNAL")
+    # score wallets on resolved history, then read their current positioning
+    history = [FlowTrade("0xsharp", f"r{i}", Token.YES, Side.BUY, 0.60, 500)
+               for i in range(40)]
+    scores = score_wallets(history, {f"r{i}": 1 for i in range(40)})
+    prov = SmartMoneyProvider(scores)
+    prov.observe(FlowTrade("0xsharp", "mkt-flow", Token.YES, Side.BUY, 0.50, 20_000))
+    m = binary_market("mkt-flow", 0.50, category="politics")
+    s = prov.fair_value(m)
+    print(f"  wallet 0xsharp: skill={scores['0xsharp'].skill:+.3f} "
+          f"over {scores['0xsharp'].n_trades} resolved trades")
+    print(f"  market mid 0.500 -> signal p={s.p:.3f} confidence={s.confidence:.2f}")
+    print(f"  rationale: {s.rationale}")
+
+
 if __name__ == "__main__":
     demo_arbitrage()
     demo_market_maker()
     demo_kelly()
-    print("\nAll three sample strategies ran. See strategies/README.md for details.\n")
+    demo_relation_arb()
+    demo_longshot_bias()
+    demo_theta()
+    demo_smart_money()
+    print("\nAll seven sample strategies ran. See strategies/README.md for details.\n")

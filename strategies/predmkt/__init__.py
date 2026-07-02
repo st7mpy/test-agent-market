@@ -12,11 +12,13 @@ from .types import (
     Event,
     Intent,
     LimitOrder,
+    MarketRelation,
     Merge,
     OrderBook,
     Portfolio,
     Position,
     Price,
+    RelationKind,
     Side,
     Size,
     Split,
@@ -28,6 +30,13 @@ from .types import (
 from .arbitrage import ArbitrageStrategy, ArbParams
 from .market_maker import MarketMakerStrategy, MMParams
 from .kelly_edge import KellyEdgeStrategy, KellyParams
+from .relation_arb import RelationArbStrategy, RelationArbParams
+from .longshot_bias import LongshotBiasStrategy, LongshotParams, debias
+from .theta_convergence import ThetaConvergenceStrategy, ThetaParams
+from .flow_signal import (
+    FlowTrade, SmartMoneyParams, SmartMoneyProvider, WalletScore,
+    score_wallets, signed_yes_exposure,
+)
 from .signals import (
     Signal,
     SignalProvider,
@@ -48,7 +57,7 @@ from .venue import (
 )
 from .fees import (
     polymarket_taker_fee, polymarket_taker_fee_per_share,
-    kalshi_fee, kalshi_fee_per_share, taker_fee_per_share,
+    kalshi_fee, kalshi_fee_per_share, forecastex_fee_per_share, taker_fee_per_share,
 )
 from .attestation import (
     Attestation, AttestationService, commit_positions,
@@ -58,18 +67,24 @@ from .attestation import (
 __all__ = [
     "Context", "Fill", "Strategy",
     "BinaryMarket", "CancelAll", "Convert", "CrossVenuePair", "Event", "Intent",
-    "LimitOrder", "Merge", "OrderBook", "Portfolio", "Position", "Price", "Side",
-    "Size", "Split", "TICK", "TIF", "Token", "Venue",
+    "LimitOrder", "MarketRelation", "Merge", "OrderBook", "Portfolio", "Position",
+    "Price", "RelationKind", "Side", "Size", "Split", "TICK", "TIF", "Token", "Venue",
     "ArbitrageStrategy", "ArbParams",
     "MarketMakerStrategy", "MMParams",
     "KellyEdgeStrategy", "KellyParams",
+    "RelationArbStrategy", "RelationArbParams",
+    "LongshotBiasStrategy", "LongshotParams", "debias",
+    "ThetaConvergenceStrategy", "ThetaParams",
+    "FlowTrade", "SmartMoneyParams", "SmartMoneyProvider", "WalletScore",
+    "score_wallets", "signed_yes_exposure",
     "Signal", "SignalProvider", "MarketImpliedProvider", "ExternalPriorProvider",
     "SignalReport", "as_fair_value_fn", "brier_score", "brier_skill_score",
     "calibration_curve", "expected_calibration_error", "evaluate_provider",
     "OracleRiskModel", "OracleRiskParams", "RiskGate", "RiskLimits",
     "VenueAdapter", "PolymarketAdapter", "KalshiAdapter", "ReplayAdapter", "CrossVenueFeed",
     "polymarket_taker_fee", "polymarket_taker_fee_per_share",
-    "kalshi_fee", "kalshi_fee_per_share", "taker_fee_per_share",
+    "kalshi_fee", "kalshi_fee_per_share", "forecastex_fee_per_share",
+    "taker_fee_per_share",
     "Attestation", "AttestationService", "commit_positions",
     "verify_attestation", "verify_position_reveal",
 ]

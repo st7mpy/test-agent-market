@@ -15,6 +15,7 @@ from .types import (
     CrossVenuePair,
     Event,
     Intent,
+    MarketRelation,
     Portfolio,
     Side,
     Token,
@@ -36,6 +37,7 @@ class Context:
     markets: Dict[str, BinaryMarket] = field(default_factory=dict)
     events: Dict[str, Event] = field(default_factory=dict)
     cross_pairs: List[CrossVenuePair] = field(default_factory=list)
+    relations: List[MarketRelation] = field(default_factory=list)
     portfolio: Portfolio = field(default_factory=Portfolio)
 
 
