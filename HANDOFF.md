@@ -249,9 +249,9 @@ until a real-money track record — that's the Phase-0 point.
 |---|---|---|
 | Python strategies, SDK, execution, reconcile | ✅ 11 smoke tests; demo/backtest/paper/live all run offline | — |
 | Reconciliation halt-on-divergence | ✅ injected-fault test halts + trips kill-switch | behavior against a real venue feed |
-| Live Polymarket adapter (REST CLOB/Gamma) | endpoints + parsing written | ❌ never hit a real endpoint (network blocked) |
-| Backtest/paper on real data | code path written | ❌ no real series fetched |
-| `StrategyVault.sol` | logic written + tests written | ❌ never compiled, never run, not audited |
+| Live Polymarket adapter (REST CLOB/Gamma) | ✅ real Gamma/CLOB books + price history fetched (651469f headers fix; check_polymarket.py → REACHABLE) | live loop + positions() reconciliation against a real feed; Kalshi + authed endpoints |
+| Backtest/paper on real data | ✅ real series fetched + --live backtest ran on a real resolved market (16894dd) | sustained papertrade.py/live.py loop on live data |
+| `StrategyVault.sol` | ✅ compiles (Foundry 1.7.1 / solc 0.8.24) + 31 tests pass + Slither triaged | ❌ not externally audited |
 | Fee/venue-mechanic numbers | structure modelled | ❌ approximate — confirm against venue docs |
 
 ---
