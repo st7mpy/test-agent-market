@@ -1,14 +1,16 @@
 # Vault Contracts (Phase 2)
 
-`StrategyVault.sol` — the **ERC-4626 vault skeleton** that custodies depositor capital
+`StrategyVault.sol` — the **ERC-4626 vault** that custodies depositor capital
 and encodes the value-capture + alignment mechanics from
 [`../docs/DESIGN.md`](../docs/DESIGN.md) and [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md).
+`TranchedVault.sol` — the Phase-6 **senior/junior depositor tranches** (ADR-017).
 
 > ⚠️ **Not externally audited — not for production.**
-> Now **compiles (Foundry 1.7.1 / solc 0.8.24 / OpenZeppelin v5) and passes 17 tests**,
-> with Slither findings triaged (see [`AUDIT-PREP.md`](AUDIT-PREP.md)). It remains a
-> structural starting point: the money-path must pass **external Audit #1**
-> (PLAN.md Phase 3) before any real capital, and the loss-waterfall is still stubbed.
+> Now **compiles (Foundry 1.7.1 / solc 0.8.24 / OpenZeppelin v5) and passes 31 tests**
+> (5 happy-path + 12 property + 7 insurance/loss-waterfall + 7 tranched), with Slither
+> findings triaged (see [`AUDIT-PREP.md`](AUDIT-PREP.md)). It remains a structural
+> starting point: the money-path must pass **external Audit #1**
+> (PLAN.md Phase 3) before any real capital.
 
 ## What it implements
 
@@ -31,9 +33,10 @@ gains above the HWM; the HWM resets after each crystallization. Slashing takes f
 
 1. **Bond + first-loss are excluded from `totalAssets()`** so they don't distort depositor
    share price. A production design would escrow them outside the vault.
-2. **Junior/senior loss-waterfall is stubbed** (`_applyLoss` reverts). True first-loss —
-   the maker's junior tranche absorbing *strategy* losses before depositors — requires
-   integration with settlement and is the open question flagged in DESIGN.md §11.
+2. **Realized-loss waterfalls take a trusted input** — `applyStrategyLoss` (first-loss →
+   bond → depositors) and `coverOracleLoss` (insurance fund → depositors) are implemented
+   (ADR-015), but the loss *amount* is a RiskGate-supplied number from off-chain
+   reconciliation; that measurement path needs settlement integration and is in Audit #1's scope.
 3. Fee/HWM rounding, reentrancy hardening, pausing, and per-depositor fee equalization are
    not addressed here.
 
@@ -46,7 +49,7 @@ This repo does not vendor dependencies. To compile and run the tests:
 cd contracts
 forge install OpenZeppelin/openzeppelin-contracts foundry-rs/forge-std --no-git
 forge build          # Compiler run successful (solc 0.8.24)
-forge test           # 17 passed; 0 failed
+forge test           # 31 passed; 0 failed
 ```
 
 - `test/StrategyVault.t.sol` (5) — happy path: co-invest ratio gating, capacity-cap
@@ -55,9 +58,14 @@ forge test           # 17 passed; 0 failed
   HWM **no-double-charge-across-a-drawdown** invariant, deposit/withdraw NAV
   correctness, slash-waterfall spill + over-slash cap, co-invest-ratio gating across
   multiple deposits, and admin hardening (zero-checks, rotation, bounds).
+- `test/StrategyVaultInsurance.t.sol` (7) — insurance fund + realized-loss waterfalls
+  (ADR-015): fund excluded from NAV, strategy-loss junior-first, oracle-loss covered
+  by the fund with maker capital untouched, RiskGate-only access.
+- `test/TranchedVault.t.sol` (7) — senior/junior tranching (ADR-017): loss junior-first,
+  senior coupon priority, withdraw-at-grown-NAV, balance invariant.
 
 See [`AUDIT-PREP.md`](AUDIT-PREP.md) for the toolchain, the full coverage matrix, and
-the Slither triage (17 findings → 4 reviewed-and-accepted).
+the Slither triage (first pass 17 findings → 3 reviewed-and-accepted).
 
 ## How it connects to the rest
 
