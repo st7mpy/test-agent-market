@@ -39,7 +39,7 @@ See [`config.example.json`](config.example.json). Keys:
 | `strategy.params` | overrides for that strategy's params dataclass — unknown fields are rejected, so typos fail fast |
 | `bankroll` | session capital (paper) |
 | `risk` | `RiskLimits`: position/notional caps, `max_oracle_risk` to gate dispute-prone markets (ADR-014) |
-| `oracle` | per-market `flags` / score `overrides` feeding the `OracleRiskModel` |
+| `oracle` | per-market `flags` / score `overrides` feeding the `OracleRiskModel`. Omitting it does NOT ungate `longshot`/`theta` — they always get a default category-based model (a note is printed); loosen explicitly via `strategy.params.max_oracle_risk` if you really mean it |
 | `loop` | steps, reconciliation cadence, poll interval |
 | `report_path` | where the session report JSON is written |
 

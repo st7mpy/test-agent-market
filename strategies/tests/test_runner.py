@@ -2,6 +2,8 @@
 """Tests for the config-driven strategy runner (the deployable unit).
 Run: `cd strategies && python tests/test_runner.py`.
 """
+import contextlib
+import io
 import json
 import os
 import sys
@@ -11,9 +13,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import run as runner  # noqa: E402
 from predmkt import (  # noqa: E402
-    KellyEdgeStrategy, LongshotBiasStrategy, MarketMakerStrategy, OracleRiskModel,
-    ThetaConvergenceStrategy,
+    Context, KellyEdgeStrategy, LongshotBiasStrategy, MarketMakerStrategy,
+    OracleRiskModel, ThetaConvergenceStrategy,
 )
+from predmkt.sim import binary_market  # noqa: E402
 
 
 def _write_cfg(d):
@@ -96,6 +99,39 @@ def test_oracle_model_threads_into_gate_and_strategy():
     _, model2 = runner.build_risk(cfg2)
     strat2 = runner.build_strategy(cfg2, "m", oracle_model=model2)
     assert strat2.oracle_model is model2
+
+
+# --- oracle-gated strategies never run ungated (ADR-014) --------------------------- #
+def test_gated_strategies_get_default_oracle_model():
+    # no oracle config anywhere -> theta/longshot still get a category-based model
+    for name in runner.ORACLE_GATED:
+        cfg = _cfg(strategy={"name": name, "params": {}})
+        s = runner.build_strategy(cfg, "m")
+        assert isinstance(s.oracle_model, OracleRiskModel), f"{name} must never be ungated"
+
+
+def test_default_oracle_gate_blocks_risky_market():
+    # identical carry setups; only the category (=> default oracle score) differs.
+    # crypto base 0.10 <= theta's 0.25 -> tradeable; world base 0.55 > 0.25 -> refused.
+    cfg = _cfg(strategy={"name": "theta", "params": {}})
+    s = runner.build_strategy(cfg, "m")
+    safe = binary_market("safe", 0.90, category="crypto", time_to_resolution=5.0)
+    risky = binary_market("risky", 0.90, category="world", time_to_resolution=5.0)
+    assert s.on_tick(Context(markets={"safe": safe})), "low-oracle-risk carry should trade"
+    assert s.on_tick(Context(markets={"risky": risky})) == [], \
+        "default gate must refuse a dispute-prone (world) market"
+
+
+def test_default_gate_note_emitted():
+    with tempfile.TemporaryDirectory() as d:
+        cfg = _cfg(strategy={"name": "theta", "params": {}},
+                   loop={"steps": 5, "reconcile_every": 100},
+                   report_path=os.path.join(d, "r.json"))
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            runner.run_session(cfg, verbose=False)
+        assert "default OracleRiskModel" in err.getvalue(), \
+            "operator note must appear even in quiet mode"
 
 
 # --- end-to-end replay session ----------------------------------------------------- #

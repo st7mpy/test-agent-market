@@ -71,6 +71,11 @@ DEFAULT_CONFIG: Dict[str, Any] = {
 # multi-market feed and run through their own harnesses (multivenue_demo.py)
 STRATEGIES = ("mm", "kelly", "arb", "longshot", "theta")
 
+# strategies whose entry is oracle-gated (ADR-014): they sell the mis-resolution
+# tail, so they must never run ungated — if the config supplies no oracle model,
+# build_strategy gives them the default category-based OracleRiskModel.
+ORACLE_GATED = ("longshot", "theta")
+
 
 def load_config(path: str) -> Dict[str, Any]:
     with open(path) as f:
@@ -120,6 +125,8 @@ def build_strategy(cfg: Dict[str, Any], market_id: str, *,
         return s
     if name == "arb":
         return ArbitrageStrategy(_params(ArbParams, overrides))
+    if name in ORACLE_GATED and oracle_model is None:
+        oracle_model = OracleRiskModel()     # never ungated; category base rates apply
     if name == "longshot":
         return LongshotBiasStrategy(bankroll, _params(LongshotParams, overrides),
                                     oracle_model=oracle_model)
@@ -160,6 +167,14 @@ def run_session(cfg: Dict[str, Any], *, verbose: bool = True) -> Dict[str, Any]:
     adapter = build_adapter(cfg)
     risk, oracle_model = build_risk(cfg)
     strategy = build_strategy(cfg, adapter.market_id, oracle_model=oracle_model)
+    if cfg["strategy"]["name"] in ORACLE_GATED and oracle_model is None:
+        # printed even with --quiet: an operator should always see which gate is live
+        thresh = getattr(getattr(strategy, "p", None), "max_oracle_risk", None)
+        print(f"note: strategy '{cfg['strategy']['name']}' is oracle-gated (ADR-014); "
+              f"no oracle config supplied -> using default OracleRiskModel "
+              f"(category base rates, max_oracle_risk={thresh}). "
+              f"Set 'oracle' flags/overrides for market-specific scores.",
+              file=sys.stderr)
     broker = PaperBroker(Portfolio(cash=float(cfg["bankroll"])))
 
     loop = cfg["loop"]
