@@ -26,14 +26,19 @@ plan, how to run everything, and what to do next. Deeper detail lives in `docs/`
    merged into this branch, and this branch was pushed too. `git log --oneline -8` shows
    both lines of commits; open a PR from either branch when a phase gate is ready for review.
 
-2. **This session's network blocks `polymarket.com`** (egress policy → 403, confirmed). So
-   every `--live` path and real-data backtest is **written but untested here**; everything
-   ran against a bundled offline fixture. Re-run the live paths in a networked environment.
+2. **Live Polymarket data access WORKS.** The old 403 was Cloudflare rejecting bare
+   HTTP clients, not a geo-block; since `651469f`, `predmkt/data.py` sends browser-like
+   headers and real Gamma/CLOB books + history have been fetched from a normal machine
+   (`python check_polymarket.py` → REACHABLE verifies it; if a true geo-block ever
+   appears, see `strategies/DEPLOY_DATA.md`). The 2026-07-01 session's sandbox *was*
+   egress-blocked — that's why it handed off a bundle. Still untested live: Kalshi
+   endpoints, and anything requiring auth/API keys.
 
 3. **The Solidity now compiles and tests pass, but is NOT externally audited.**
    `contracts/` builds under Foundry 1.7.1 / solc 0.8.24 / OpenZeppelin v5 and passes
-   **24 tests** (incl. the HWM no-double-charge-across-drawdown vector and the insurance-fund
-   loss waterfalls); Slither is triaged in `contracts/AUDIT-PREP.md` (3 accepted findings).
+   **31 tests** — 24 across the `StrategyVault` suites (incl. the HWM
+   no-double-charge-across-drawdown vector and the insurance-fund loss waterfalls) + 7
+   `TranchedVault`; Slither is triaged in `contracts/AUDIT-PREP.md` (3 accepted findings).
    The loss-waterfall is now implemented (ADR-015); **external Audit #1 (Phase 3) remains
    the gate before any real capital.**
 
@@ -176,7 +181,7 @@ the founder will use to attempt those gates.
 |---|---|---|---|
 | **0 Prove the edge** | Positive net real-money edge, documented | Sample strategies + backtester + paper-trader + edge screener + trade journal/gate-checker | ⏳ tooling ready; **edge NOT proven** (needs real $ + network) |
 | **1 Automate it** | Hosted bot ≥ manual; exact reconciliation; kill-switch | Venue adapter, intent→RiskGate→OMS, reconcile + kill-switch, live loop, **signal layer (F) + Brier/calibration gate** | ⏳ skeleton runs offline; **untested on live data** |
-| **2 Vault** | NAV reconciles incl. resolution; halts on divergence | `StrategyVault.sol` **compiles + 24 tests pass + Slither triaged**; loss-waterfall implemented | ⏳ **compiles & tested; not externally audited** |
+| **2 Vault** | NAV reconciles incl. resolution; halts on divergence | `StrategyVault.sol` **compiles + 31 tests pass + Slither triaged** (24 StrategyVault + 7 TranchedVault); loss-waterfall implemented | ⏳ **compiles & tested; not externally audited** |
 | **3 First outside money** | AUDIT #1 + fee/HWM correct + legal | fee/HWM correctness **proven by test vectors** (`AUDIT-PREP.md`); **multi-venue (D): Kalshi adapter + CrossVenueFeed + venue-aware fees**; audit + legal still pending | ◻ code-correctness done; audit/legal not started |
 | **4 Safety systems** | Chaos tests pass; unattended soak | partial: RiskGate, slashing, caps, kill-switch, **+ oracle-risk scoring/gating + insurance fund & loss-waterfall (C)**; chaos suite pending | ◻ not hardened |
 | **5 Untrusted makers** | Sandbox escape impossible (AUDIT #2) | intent-boundary designed; **A-lite TEE design + attestation-flow stub (A, ADR-018, `docs/TEE-DESIGN.md`)**; real enclave + pentest/AUDIT #2 gated | ◻ design + stub; enclave not built |
@@ -266,7 +271,8 @@ until a real-money track record — that's the Phase-0 point.
 
 ## 8. Immediate next steps (prioritized)
 
-1. **Preserve the work:** grant GitHub write access and push the branch (Section 0.1).
+1. **Preservation: done.** Both branches are on origin (`st7mpy/test-agent-market`;
+   Section 0.1) — open a PR from either branch when a phase gate is ready for review.
 2. **Phase-0 for real:** in a networked env, fetch real Polymarket data (`--live`), then trade
    your own capital and document a positive *net* edge. This is the existential kill-gate — no
    edge, no business (consider the picks-and-shovels infra pivot instead; EVALUATION §10).
