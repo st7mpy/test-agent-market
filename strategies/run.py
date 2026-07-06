@@ -35,6 +35,7 @@ from typing import Any, Dict
 
 from predmkt import (
     ArbitrageStrategy, ArbParams,
+    DeltaNeutralParams, DeltaNeutralYieldStrategy,
     KellyEdgeStrategy, KellyParams,
     LongshotBiasStrategy, LongshotParams,
     MarketMakerStrategy, MMParams,
@@ -69,11 +70,13 @@ DEFAULT_CONFIG: Dict[str, Any] = {
 
 # strategies runnable in the single-market loop; relation/cross-venue arb need a
 # multi-market feed and run through their own harnesses (multivenue_demo.py)
-STRATEGIES = ("mm", "kelly", "arb", "longshot", "theta")
+STRATEGIES = ("mm", "kelly", "arb", "longshot", "theta", "deltaneutral")
 
 # strategies whose entry is oracle-gated (ADR-014): they sell the mis-resolution
 # tail, so they must never run ungated — if the config supplies no oracle model,
 # build_strategy gives them the default category-based OracleRiskModel.
+# (deltaneutral is exempt by construction: matched sets redeem $1 under any
+# resolution; its only exposure is the delta_band-capped unmatched leg.)
 ORACLE_GATED = ("longshot", "theta")
 
 
@@ -133,6 +136,9 @@ def build_strategy(cfg: Dict[str, Any], market_id: str, *,
     if name == "theta":
         return ThetaConvergenceStrategy(bankroll, _params(ThetaParams, overrides),
                                         oracle_model=oracle_model)
+    if name == "deltaneutral":
+        return DeltaNeutralYieldStrategy(
+            bankroll, _params(DeltaNeutralParams, overrides, market_id=market_id))
     raise ValueError(f"unknown strategy {name!r}")
 
 

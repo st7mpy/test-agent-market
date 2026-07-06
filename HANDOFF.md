@@ -124,6 +124,7 @@ strategies/                   Phase 0–1 code — dependency-free Python
     longshot_bias.py          strategy 5: favorite-longshot bias harvester (debias map + guards)
     theta_convergence.py      strategy 6: near-resolution carry, strictly oracle-gated
     flow_signal.py            strategy 7: smart-money flow SignalProvider + wallet scoring
+    delta_neutral.py          strategy 8: delta-neutral set-minting yield (venue-yield wedge, B)
     sim.py                    offline order-book builders + synthetic series
     data.py                   live Polymarket API (Gamma + CLOB book/history) + fixture loader
     venue.py                  VenueAdapter: Polymarket + Kalshi (live) + ReplayAdapter + CrossVenueFeed (D, ADR-016)
@@ -133,7 +134,7 @@ strategies/                   Phase 0–1 code — dependency-free Python
     oracle_risk.py            oracle/resolution-risk scoring for the RiskGate (C, ADR-014)
     attestation.py            attested track records / TEE flow stub (A-lite, ADR-018)
   data/sample_history.json    offline price fixture (Polymarket schema, resolves YES)
-  demo.py                     prints intents each of the seven strategies emits
+  demo.py                     prints intents each of the eight strategies emits
   backtest.py                 price-replay backtester (--live / --file / fixture; --pages, --outcome)
   papertrade.py               paper-trade behind the venue adapter + risk gate + OMS
   live.py                     live/poll loop + reconciliation + kill-switch
@@ -209,7 +210,7 @@ python tests/test_theta_convergence.py     # 10 theta-convergence tests
 python tests/test_flow_signal.py           # 10 smart-money flow tests
 python tests/test_runner.py                # 9 config-runner tests
 python multivenue_demo.py                  # cross-venue arb across two venues (D)
-python demo.py                             # intents each of the seven strategies emits
+python demo.py                             # intents each of the eight strategies emits
 python signal_demo.py                      # signal skill + calibration vs the market (F)
 python phase0_journal.py status            # Phase-0 net PnL incl. venue-yield + gate (B)
 python backtest.py --strategy mm           # price-replay backtest (fixture)

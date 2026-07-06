@@ -35,7 +35,7 @@ See [`config.example.json`](config.example.json). Keys:
 |---|---|
 | `mode` | `replay` (bundled offline fixture; runs anywhere) or `live` (poll real venue books; **paper execution** — see below) |
 | `venue`, `market` | `polymarket` + `{"query": ...}` or `kalshi` + `{"ticker": ...}` |
-| `strategy.name` | `mm`, `kelly`, `arb`, `longshot`, `theta` |
+| `strategy.name` | `mm`, `kelly`, `arb`, `longshot`, `theta`, `deltaneutral` |
 | `strategy.params` | overrides for that strategy's params dataclass — unknown fields are rejected, so typos fail fast |
 | `bankroll` | session capital (paper) |
 | `risk` | `RiskLimits`: position/notional caps, `max_oracle_risk` to gate dispute-prone markets (ADR-014) |

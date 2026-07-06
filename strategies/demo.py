@@ -13,6 +13,8 @@ from predmkt import (
     BinaryMarket,
     Context,
     CrossVenuePair,
+    DeltaNeutralParams,
+    DeltaNeutralYieldStrategy,
     Event,
     Fill,
     FlowTrade,
@@ -172,6 +174,17 @@ def demo_smart_money() -> None:
     print(f"  rationale: {s.rationale}")
 
 
+def demo_delta_neutral() -> None:
+    hr("8 · DELTA-NEUTRAL SET-MINTING YIELD")
+    strat = DeltaNeutralYieldStrategy(100_000.0, DeltaNeutralParams(market_id="mkt-dn"))
+    pf = Portfolio()
+    pos = pf.position("mkt-dn")
+    pos.yes, pos.no = 500.0, 300.0            # 300 matched sets + 200 unmatched YES
+    m = binary_market("mkt-dn", 0.50, category="crypto")
+    print("  holding YES=500 NO=300 -> 300 matched sets to merge, imbalance +200")
+    show(strat.on_tick(Context(markets={"mkt-dn": m}, portfolio=pf)))
+
+
 if __name__ == "__main__":
     demo_arbitrage()
     demo_market_maker()
@@ -180,4 +193,5 @@ if __name__ == "__main__":
     demo_longshot_bias()
     demo_theta()
     demo_smart_money()
-    print("\nAll seven sample strategies ran. See strategies/README.md for details.\n")
+    demo_delta_neutral()
+    print("\nAll eight sample strategies ran. See strategies/README.md for details.\n")

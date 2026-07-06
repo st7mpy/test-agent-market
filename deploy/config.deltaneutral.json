@@ -1,0 +1,21 @@
+{
+  "mode": "replay",
+  "venue": "polymarket",
+  "market": {"query": "bitcoin hit $1m"},
+  "strategy": {
+    "name": "deltaneutral",
+    "params": {
+      "quote_size": 200,
+      "half_spread": 0.01,
+      "delta_band": 300,
+      "gross_cap": 0.5
+    }
+  },
+  "bankroll": 100000.0,
+  "risk": {
+    "max_position_shares": 20000.0,
+    "max_order_notional": 10000.0
+  },
+  "loop": {"steps": 400, "reconcile_every": 25, "interval_s": 5.0},
+  "report_path": "session_report.json"
+}

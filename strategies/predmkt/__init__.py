@@ -33,6 +33,7 @@ from .kelly_edge import KellyEdgeStrategy, KellyParams
 from .relation_arb import RelationArbStrategy, RelationArbParams
 from .longshot_bias import LongshotBiasStrategy, LongshotParams, debias
 from .theta_convergence import ThetaConvergenceStrategy, ThetaParams
+from .delta_neutral import DeltaNeutralYieldStrategy, DeltaNeutralParams
 from .flow_signal import (
     FlowTrade, SmartMoneyParams, SmartMoneyProvider, WalletScore,
     score_wallets, signed_yes_exposure,
@@ -75,6 +76,7 @@ __all__ = [
     "RelationArbStrategy", "RelationArbParams",
     "LongshotBiasStrategy", "LongshotParams", "debias",
     "ThetaConvergenceStrategy", "ThetaParams",
+    "DeltaNeutralYieldStrategy", "DeltaNeutralParams",
     "FlowTrade", "SmartMoneyParams", "SmartMoneyProvider", "WalletScore",
     "score_wallets", "signed_yes_exposure",
     "Signal", "SignalProvider", "MarketImpliedProvider", "ExternalPriorProvider",

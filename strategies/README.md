@@ -3,7 +3,7 @@
 Clean-room, runnable **sample trading strategies** for the prediction-market vault
 platform — the first concrete deliverable of **Phase 0** in [`../docs/PLAN.md`](../docs/PLAN.md).
 
-Seven strategy families, mapping to what the platform advertises (Arb / Kelly / mispricing):
+Eight strategy families, mapping to what the platform advertises (Arb / Kelly / mispricing / yield):
 
 | Strategy | File | Idea |
 |---|---|---|
@@ -14,6 +14,7 @@ Seven strategy families, mapping to what the platform advertises (Arb / Kelly / 
 | **Longshot-bias harvester** | `predmkt/longshot_bias.py` | Sell systematically overpriced tails via the favorite side, with a debias map, momentum + oracle-risk guards, hard risk budgets |
 | **Theta convergence** | `predmkt/theta_convergence.py` | Buy near-certain favorites close to resolution when the annualized carry clears a hurdle; strictly oracle-risk-gated |
 | **Smart-money flow** | `predmkt/flow_signal.py` | Score public on-chain wallets on resolved track records; tilt fair value toward proven wallets' live positioning (a `SignalProvider` for Kelly, gated by ADR-013) |
+| **Delta-neutral yield** | `predmkt/delta_neutral.py` | Rest bids on BOTH books summing to 1−2δ, merge matched sets back to $1 (the venue-yield wedge, differentiator B); delta capped by a band, oracle-exempt by construction |
 
 > ⚠️ **These are educational reference implementations, not turnkey money-printers.**
 > Parameters are illustrative defaults; the platform's plan (PLAN.md, Phase 0) requires a
@@ -129,7 +130,7 @@ predmkt/
   venue.py         # VenueAdapter: PolymarketAdapter (live) + ReplayAdapter (offline)
   execution.py     # RiskGate + PaperBroker + PaperOMS (the trusted execution seams)
 data/sample_history.json  # offline price-history fixture (Polymarket schema)
-demo.py            # runnable demonstration (all seven strategies)
+demo.py            # runnable demonstration (all eight strategies)
 backtest.py        # price-replay backtester (real data via --live, else fixture)
 papertrade.py      # paper-trade behind the real venue adapter + risk gate + OMS
 run.py             # config-driven runner — the deployable unit (see ../deploy/)

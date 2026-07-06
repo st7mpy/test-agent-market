@@ -123,18 +123,26 @@ class PaperBroker:
 
     # taker fills walk the book; maker quotes rest and fill when the mid crosses
     def execute(self, it: Intent, m: BinaryMarket) -> List[Fill]:
+        # Split/Merge are CTF position changes the VENUE sees too (on-chain ops), so
+        # they must be mirrored to the adapter's ledger or reconciliation (ADR-011)
+        # would read the internal delta as a divergence and trip the kill-switch.
+        # They are returned as paired transfer Fills at $0.50/leg (cash-neutral pair).
         if isinstance(it, Split):
             self.pf.cash -= it.usdc
-            p = self.pf.position(it.market_id or m.market_id)
+            mid_id = it.market_id or m.market_id
+            p = self.pf.position(mid_id)
             p.yes += it.usdc
             p.no += it.usdc
-            return []
+            return [Fill(mid_id, Token.YES, Side.BUY, 0.5, it.usdc),
+                    Fill(mid_id, Token.NO, Side.BUY, 0.5, it.usdc)]
         if isinstance(it, Merge):
-            p = self.pf.position(it.market_id or m.market_id)
+            mid_id = it.market_id or m.market_id
+            p = self.pf.position(mid_id)
             p.yes -= it.shares
             p.no -= it.shares
             self.pf.cash += it.shares
-            return []
+            return [Fill(mid_id, Token.YES, Side.SELL, 0.5, it.shares),
+                    Fill(mid_id, Token.NO, Side.SELL, 0.5, it.shares)]
         if isinstance(it, CancelAll):
             self.resting = [r for r in self.resting if r.market_id != (it.market_id or m.market_id)]
             self._pending = [r for r in self._pending if r.market_id != (it.market_id or m.market_id)]

@@ -29,7 +29,7 @@ This is deliberately **not** the original "open-source bots, one-click local dep
 
 | Path | What it is |
 |---|---|
-| [`strategies/`](strategies/) | **Phase 0–1.** Seven clean-room strategies (arbitrage, market making, Kelly-edge, relation arb, longshot-bias, theta convergence, smart-money flow) on an intent-based SDK, Polymarket/Kalshi data + venue adapters, a price-replay backtester, paper trading, a live loop with position reconciliation (kill-switch on divergence), and a config-driven runner. Dependency-free Python; ~100 tests. |
+| [`strategies/`](strategies/) | **Phase 0–1.** Eight clean-room strategies (arbitrage, market making, Kelly-edge, relation arb, longshot-bias, theta convergence, smart-money flow, delta-neutral set-minting yield) on an intent-based SDK, Polymarket/Kalshi data + venue adapters, a price-replay backtester, paper trading, a live loop with position reconciliation (kill-switch on divergence), and a config-driven runner. Dependency-free Python; ~100 tests. |
 | [`contracts/`](contracts/) | **Phase 2 + 6.** ERC-4626 `StrategyVault` (profit-only HWM fee, TVL tiers, first-loss + slashable bond, capacity cap, RiskGate-only slashing, insurance fund + loss waterfalls) + `TranchedVault` (senior/junior). Compiles (Foundry 1.7.1 / solc 0.8.24), **31 tests pass**, Slither triaged; **not externally audited** — see its README. |
 | [`deploy/`](deploy/) | **Deployment.** Docker image + compose + config schema for the strategy runner; exit-code contract (halt ≠ restart); platform-hosted and self-host framings. |
 
