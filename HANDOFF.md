@@ -69,6 +69,7 @@ competitive analysis, TAM, and the pivot are in the docs below.
 | `docs/ARCHITECTURE.md` | The **why**: 18 ADRs (incl. the differentiators), trust boundaries, failure modes |
 | `docs/PLAN.md` | Phase-by-phase plan to 100% + the 2026 moat re-eval / differentiator map |
 | `docs/DIFFERENTIATION.md` · `docs/COMPETITION.md` | 2026 competitive scan + the moat (B/F/D/C/A-lite/E) |
+| `docs/GTM.md` | Founder GTM: phase-aligned marketing, maker/depositor acquisition, accelerators, funnel metrics |
 | `docs/VENUES.md` | Venue deployment matrix: tiers, fees, prerequisites, strategy×venue fit |
 | `docs/TEE-DESIGN.md` | A-lite design: TEE-private positions + attested track records (ADR-018) |
 | `docs/Concept-Brief.pdf` | 7-page styled brief (idea, users, TAM, architecture, user flows) |
