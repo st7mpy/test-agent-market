@@ -80,6 +80,63 @@ def test_oscillating_market_harvests_spread_end_to_end():
     assert oms.equity[-1] > 100_000.0, "harvested spread should net positive equity"
 
 
+def test_anchored_quotes_capture_slow_drift():
+    # mid drifts down 0.002/tick: chasing quotes (threshold 0) never get reached,
+    # anchored quotes (threshold 0.02) stand still until the drift crosses them.
+    def run(threshold):
+        strat = _strat(quote_size=100, requote_threshold=threshold)
+        broker = PaperBroker(Portfolio(cash=100_000.0))
+        oms = PaperOMS(strat, RiskGate(RiskLimits(max_position_shares=10**6,
+                                                  max_order_notional=10**6)), broker)
+        mid = 0.50
+        for i in range(40):
+            mid -= 0.002
+            oms.step(binary_market("m", mid, time_to_resolution=float(40 - i)))
+        return broker.n_fills
+
+    assert run(0.0) == 0, "chasing quotes re-priced every tick are never crossed by slow drift"
+    assert run(0.02) > 0, "anchored quotes must fill when the drift traverses delta"
+
+
+def test_auto_spread_clamps_to_measured_vol():
+    calm = _strat(auto_spread=True, half_spread=0.005, half_spread_max=0.04)
+    for _ in range(30):
+        calm.on_tick(_ctx(mid=0.50))                      # zero vol
+    assert abs(calm._half_spread() - 0.005) < 1e-12, "calm book -> floor spread"
+
+    jumpy = _strat(auto_spread=True, half_spread=0.005, half_spread_max=0.02, vol_mult=3.0)
+    mids = [0.50, 0.55, 0.45, 0.56, 0.44, 0.57, 0.43, 0.55, 0.45]
+    for md in mids:
+        jumpy.on_tick(_ctx(mid=md))                       # sigma ~ 0.1 -> way past max
+    assert abs(jumpy._half_spread() - 0.02) < 1e-12, "jumpy book -> capped at max"
+
+
+def test_stats_track_uptime_and_merges():
+    s = _strat()
+    s.on_tick(_ctx(mid=0.50))                             # two-sided quote
+    s.on_tick(_ctx(mid=0.97))                             # out of range
+    s.on_tick(_ctx(mid=0.50, yes=200, no=150))            # merge + quotes
+    assert s.stats["ticks"] == 3
+    assert s.stats["in_range"] == 2
+    assert s.stats["two_sided"] == 2
+    assert s.stats["merges"] == 1 and abs(s.stats["sets_merged"] - 150) < 1e-9
+
+
+def test_runner_report_includes_strategy_stats():
+    import json
+    import tempfile
+
+    import run as runner
+    with tempfile.TemporaryDirectory() as d:
+        cfg_path = os.path.join(d, "cfg.json")
+        json.dump({"strategy": {"name": "deltaneutral", "params": {}},
+                   "loop": {"steps": 30, "reconcile_every": 10},
+                   "report_path": os.path.join(d, "r.json")}, open(cfg_path, "w"))
+        report = runner.run_session(runner.load_config(cfg_path), verbose=False)
+    st = report["strategy_stats"]
+    assert st and st["ticks"] == 30 and "two_sided" in st
+
+
 def test_runner_session_reconciles_through_merges():
     # regression: Merge/Split must be mirrored to the venue ledger, or the
     # reconciler (ADR-011) reads the internal position change as a divergence

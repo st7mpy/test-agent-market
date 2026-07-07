@@ -205,6 +205,9 @@ def run_session(cfg: Dict[str, Any], *, verbose: bool = True) -> Dict[str, Any]:
         "fills": broker.n_fills,
         "fees_paid": broker.fees_paid,
         "breaches": [dataclasses.asdict(d) for d in out["breach"]],
+        # strategy-side diagnostics if the strategy keeps them (e.g. delta-neutral's
+        # quote-uptime — the proxy for venue-paid liquidity rewards paper can't simulate)
+        "strategy_stats": dict(getattr(strategy, "stats", {})) or None,
     }
     if cfg.get("report_path"):
         with open(cfg["report_path"], "w") as f:

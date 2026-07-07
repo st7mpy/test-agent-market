@@ -146,7 +146,8 @@ strategies/                   Phase 0–1 code — dependency-free Python
   capture_history.py          poll a live market's mid into a backtestable series (--file)
   DEPLOY_DATA.md              run live data from a supported region if geo-blocked
   tests/                      smoke 11 · signals 7 · phase0 9 · journal 5 · oracle 8 · multivenue 7
-                              · attestation 5 · relation_arb 8 · longshot 9 · theta 10 · flow 10 · runner 9
+                              · attestation 5 · relation_arb 8 · longshot 9 · theta 10 · flow 10 · runner 12
+                              · delta_neutral 11
   README.md, LICENSE (MIT)
 
 deploy/                       deployment artifacts (both framings: platform-hosted + self-host)
